@@ -1,10 +1,14 @@
-class Spieler:
-    def __init__(self, name):
-        self.name = name
-        self.geld = []
-        self.tiere = []
-        self.quattete = []
-        self.gebot = []
+from dataclasses import dataclass, field
+from typing import List, Any
+@dataclass(slots=True)
+class Player:
+    #TODO improve type hints
+    name: str
+    geld: List[Any] = field(default_factory=list)
+    tiere: List[Any] = field(default_factory=list)
+    quattete: List[Any] = field(default_factory=list)
+    gebot: List[Any] = field(default_factory=list) #this should not be here not concern of player class
+
     @property
     def gges(self):
         return sum(self.geld[i].wert for i in range(len(self.geld)))

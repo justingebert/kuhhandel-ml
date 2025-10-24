@@ -1,8 +1,15 @@
 import random
 
-from Geld import Geld
-from Player import Spieler
-from Tier import Tier
+from gameengine.Animal import Animal
+from gameengine.Money import Money
+from gameengine.Player import Player
+
+G0 = Money("Nullbauer", 0)
+G10 = Money("Zehner", 10)
+G50 = Money("Fuffi", 50)
+G100 = Money("Hunni", 100)
+G200 = Money("Zweihunni", 200)
+G500 = Money("Fünfhunni", 500)
 
 def get_random_deck():
     Tierlist = {
@@ -19,7 +26,7 @@ def get_random_deck():
     }
     TierlistO = []
     for name, wert in Tierlist.items():
-        TierlistO.append(Tier(name, wert))
+        TierlistO.append(Animal(name, wert))
     Deck = []
     for tierchen in TierlistO:
         for _ in range(4):
@@ -42,7 +49,7 @@ def testDeck():
     }
     TierlistO = []
     for name, wert in Tierlist.items():
-        TierlistO.append(Tier(name, wert))
+        TierlistO.append(Animal(name, wert))
     Deck = []
     for tierchen in TierlistO:
         for _ in range(4):
@@ -52,14 +59,6 @@ def testDeck():
 
 Deck = get_random_deck()
 TestDeck = testDeck()
-
-G0 = Geld("Nullbauer", 0)
-G10 = Geld("Zehner", 10)
-G50 = Geld("Fuffi", 50)
-G100 = Geld("Hunni", 100)
-G200 = Geld("Zweihunni", 200)
-G500 = Geld("Fünfhunni", 500)
-
 
 
 def versteigerung(verkaufender_spieler, tier, mitspieler, Deck):
@@ -272,7 +271,11 @@ def Spielstart(SL, Deck):
 
 
 Spieleranzahl = 3
-SL = [Spieler('Spieler ' + str(i)) for i in range(Spieleranzahl)]
+SL = [Player('Spieler ' + str(i)) for i in range(Spieleranzahl)]
 
-# Spielstart(SL, Deck)
-Spielstart(SL, TestDeck)
+def main() -> None:
+    # Spielstart(SL, Deck)
+    Spielstart(SL, TestDeck)
+
+if __name__ == "__main__":
+    main()
