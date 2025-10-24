@@ -1,5 +1,3 @@
-import random
-
 class Spieler:
     def __init__(self, name):
         self.name = name
@@ -10,7 +8,7 @@ class Spieler:
     @property
     def gges(self):
         return sum(self.geld[i].wert for i in range(len(self.geld)))
-    
+
     def add_tier(self, tier):
         self.tiere.append(tier)
         self.check_quatett()
@@ -28,14 +26,14 @@ class Spieler:
                 tier_count[tier.name] += 1
             else:
                 tier_count[tier.name] = 1
-        
+
         for tier_name, count in tier_count.items():
             if count >= 4:
                 self.quattete.append(tier)
                 print(f"{self.name} hat ein Quartett von {tier_name} gesammelt!")
-                
-                self.tiere = [tier for tier in self.tiere if tier.name != tier_name]            #[:count - 4] #Aurich, weißt du was du <-- damit meinst? #war high, für mehr als 4 karten im game werden nur 4 von denen abgezogen
-    
+
+                self.tiere = [tier for tier in self.tiere if tier.name != tier_name]
+
     def __str__(self):
         tiere_by_name = {}
         for t in self.tiere:
@@ -52,7 +50,7 @@ class Spieler:
             f"  Gebot: {[str(geldschein) for geldschein in self.gebot]}"
         )
 
-    
+
     def Zahltag(self, betrag, verkaufender_spieler, tier):
         if betrag > self.gges:
             raise ValueError("Du hast nicht genug Geld!") # Hier muss nochmal versteigert werden und kein Spielabbruch
