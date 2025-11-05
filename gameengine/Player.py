@@ -1,86 +1,85 @@
-from dataclasses import dataclass, field
-from typing import List, Any
-@dataclass(slots=True)
+from typing import List, Dict
+from collections import Counter
+
+from .Animal import AnimalCard, AnimalType
+from .Money import MoneyCard, calculate_total_value
+
+
 class Player:
-    #TODO improve type hints
-    name: str
-    geld: List[Any] = field(default_factory=list)
-    tiere: List[Any] = field(default_factory=list)
-    quattete: List[Any] = field(default_factory=list)
-    gebot: List[Any] = field(default_factory=list) #this should not be here not concern of player class
+    """Represents a player in the game."""
 
-    @property
-    def gges(self):
-        return sum(self.geld[i].wert for i in range(len(self.geld)))
+    def __init__(self, player_id: int, name: str = None):
+        self.player_id = player_id
+        self.name = name or f"Player {player_id}"
+        self.money: List[MoneyCard] = []
+        self.animals: List[AnimalCard] = []
 
-    def add_tier(self, tier):
-        self.tiere.append(tier)
-        self.check_quatett()
+    def add_money(self, cards: List[MoneyCard]):
+        """Add money cards to player's hand."""
+        self.money.extend(cards)
 
-    def add_quartett(self, quartett):
-        self.quattete.append(quartett)
+    def remove_money(self, cards: List[MoneyCard]):
+        """Remove specific money cards from player's hand."""
+        for card in cards:
+            if card in self.money:
+                self.money.remove(card)
 
-    def sort_tiere(self):
-        self.tiere.sort(key=lambda tier: tier.wert, reverse=False)
+    def add_animal(self, card: AnimalCard):
+        """Add an animal card to player's collection."""
+        self.animals.append(card)
 
-    def check_quatett(self):
-        tier_count = {}
-        for tier in self.tiere:
-            if tier.name in tier_count:
-                tier_count[tier.name] += 1
-            else:
-                tier_count[tier.name] = 1
+    def remove_animals(self, animal_type: AnimalType, count: int = 1) -> List[AnimalCard]:
+        """Remove and return a specific number of animals of a type."""
+        removed = []
+        for _ in range(count):
+            for card in self.animals:
+                if card.animal_type == animal_type:
+                    self.animals.remove(card)
+                    removed.append(card)
+                    break
+        return removed
 
-        for tier_name, count in tier_count.items():
-            if count >= 4:
-                self.quattete.append(tier)
-                print(f"{self.name} hat ein Quartett von {tier_name} gesammelt!")
+    def get_total_money(self) -> int:
+        """Get total money value."""
+        return calculate_total_value(self.money)
 
-                self.tiere = [tier for tier in self.tiere if tier.name != tier_name]
+    def get_animal_counts(self) -> Dict[AnimalType, int]:
+        """Get count of each animal type owned."""
+        counts = Counter(card.animal_type for card in self.animals)
+        return dict(counts)
 
-    def __str__(self):
-        tiere_by_name = {}
-        for t in self.tiere:
-            tiere_by_name[t.name] = tiere_by_name.get(t.name, 0) + 1
-        tiere_part = ", ".join(f"{k}×{v}" for k, v in tiere_by_name.items()) or "—"
-        quartette_part = ", ".join((q[0].name if isinstance(q, list) and q else q.name) for q in self.quattete) or "—"
-        geld_part = f"{self.gges}"
+    def has_animal_type(self, animal_type: AnimalType) -> bool:
+        """Check if player has at least one of the given animal type."""
+        return any(card.animal_type == animal_type for card in self.animals)
 
-        return (
-            f"Spieler {self.name}\n"
-            f"  Geld: {geld_part}\n"
-            f"  Tiere: {tiere_part}\n"
-            f"  Quartette: {quartette_part}\n"
-            f"  Gebot: {[str(geldschein) for geldschein in self.gebot]}"
+    def get_animal_count(self, animal_type: AnimalType) -> int:
+        """Get count of a specific animal type."""
+        return sum(1 for card in self.animals if card.animal_type == animal_type)
+
+    def has_complete_set(self, animal_type: AnimalType) -> bool:
+        """Check if player has all 4 cards of an animal type."""
+        return self.get_animal_count(animal_type) == 4
+
+    def calculate_score(self) -> int:
+        """Calculate final score according to game rules.
+
+        Score = (sum of animal values) × (number of different animal types)
+        """
+        animal_counts = self.get_animal_counts()
+        if not animal_counts:
+            return 0
+
+        # Sum of animal values
+        total_value = sum(
+            animal_type.get_value(count)
+            for animal_type, count in animal_counts.items()
         )
 
+        # Number of different types
+        num_types = len(animal_counts)
 
-    def Zahltag(self, betrag, verkaufender_spieler, tier):
-        if betrag > self.gges:
-            raise ValueError("Du hast nicht genug Geld!") # Hier muss nochmal versteigert werden und kein Spielabbruch
-        else:
-            betrag_rest = betrag
-            while betrag_rest > 0:
-                print(f"{self.name} muss {betrag_rest} bezahlen.")
-                print(f"Dein Geld: {[str(geldschein) for geldschein in self.geld]}")
-                geldschein_name = input(f"Mit welchem Schein zahlst du ({self.name})? ")
-                gefunden = False
-                for geldschein in self.geld:
-                    if geldschein.name == geldschein_name:
-                        gefunden = True
-                        if geldschein.wert >= betrag_rest:
-                            betrag_rest = 0
-                            self.geld.remove(geldschein)
-                            verkaufender_spieler.geld.append(geldschein)
-                            print(f"Du hast einen {geldschein.name} im Wert von {geldschein.wert} bezahlt.")
-                            break
-                        else:
-                            betrag_rest -= geldschein.wert
-                            self.geld.remove(geldschein)
-                            verkaufender_spieler.geld.append(geldschein)
-                            print(f"Du hast einen {geldschein.name} im Wert von {geldschein.wert} bezahlt.")
-                            break
-                if not gefunden:
-                    print("Du hast diesen Schein nicht.")
-            self.add_tier(tier)
-            print("Bezahlung abgeschlossen.")
+        return total_value * num_types
+
+    def __repr__(self) -> str:
+        return f"Player({self.name}, Money: {self.get_total_money()}, Animals: {len(self.animals)})"
+

@@ -1,19 +1,18 @@
-# 🎲 Kuhhandel! (RL Game Project)
+# 🎲 Kuhhandel (RL Game Project)
 
-A Python implementation of the card game *Kuhhandel!* - built to explore reinforcement learning and game simulation.
+A complete Python implementation of the card game *Kuhhandel* (You're Bluffing) - built to explore reinforcement learning and game simulation.
 
----
+## 👥 Authors
 
-## 🚀 Overview
-
-- A **game engine** that follows the official rules  
-- A **environment** for RL training  
+- Justin Gebert
+- Florian Hering  
+- Nepomuk Aurich
 
 ---
 
 ## ⚙️ Setup
 
-### 1. Install Poetry
+1. Install Poetry
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```

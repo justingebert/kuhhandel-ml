@@ -1,0 +1,110 @@
+source: https://steamcommunity.com/sharedfiles/filedetails/?id=271353889
+Rules Of The Game You’re Bluffing!
+
+
+You’re Bluffing is a cardgame for 3 – 5 players, from age of 10 - 99.
+
+Components
+• 40 animal-cards 10 x 4 animalcards (Cat, Chicken, Cow, Dog, Donkey, Goat, Goose, Horse, Lamb and
+Pig)
+• 55 money cards (10 x 0; 20 x 10; 10 x 50; 5 x 100, 200, 500)
+
+
+
+The Goal
+
+Aquire the animal cards with the highest value. Do this by bidding on animals during auctions or try
+to bluff your opponents during a cow trading. The player with the highest score at the end wins the
+game.
+
+
+
+Setup
+
+Shuffle the animalcards and place them in the tray, backside up. Sort the moneycards by value. Each
+player receives two 0-cards (to bluff), four 10-cards and one 50-card. Put the othe moneycards into
+the cardtray. They are used later. Someone beginns.
+
+
+
+The Game
+
+Each player takes his turn in clockwise order around the table. During his turn each player has two
+options:
+
+1. Auction off the animal card on top of the stack
+
+or
+
+2. do a cow trade with another player. This is only possible if two players have animals of the same
+kind, so there will be no cow trades in the beginning.
+
+
+
+The Auction
+
+The player turns over the topmost card. All the players bid simultaneously on this card. Each next bid
+must be higher than the preceeding one. The player auctioning the card off calls out for example - 30
+going first - 30 going second - gone for 30! The auctioning player may buy the animal for the
+highest bid. In this case he pays the money to the high bidder. If he doesn't want to do so, the high
+bidder pays the bid to the auctioning player. During the game, there is no chance to exchange money
+and someone who buys a card will not receive any change. If you can't exactly pay the money you
+bid, you have to spend a higher moneycard. If someone bid more money than he has, he has to reveal
+all his moneycards and the auction is repeated without him. If nobody wants to bid on an animal, the
+player auctioning off the card gets it for free. Animal cards owned by a player (not in the pile to
+beauctioned off) are placed open so each player can see what his opponents own.
+
+
+
+Cow Trade
+
+When two player own the same kind of animal, a player may make a horsetrade with the owner of
+the other card. If more than one player have the same animal, he may decide, with which one to
+trade. Of course a player may still auction of a card, instead of doing a cow trade! The other player
+may not refuse to cow trade with the challenging player.
+
+For the cow trade, the challenging player simply places any number of money cards face down on the
+table. He may of course include 0-cards to bluff! The opposing player now has two choices:
+
+a) accept the hidden offer, take the money and hand over the animal, the trade was about.
+b) place a bid hinself by laying out money cards hidden. In this case both players exchange the cards
+and check the bid of the opponent.The player with the higher bid gets the opponents animal. Both
+players keep the money received from the opponent. If both bids were equal, the two players bid
+again in the same order. If they are equal again, the challenging player gets the challenged players
+animal for free.
+
+If one player has only one of the animals they want to trade in a cowtrade, the trade is for one
+animal, even if the other player has two or three animals. If the player with the two or three
+animals looses the trade, he only has to hand over one of his animals. However, if both players have
+two animals of the kind being traded, the trade is for both of them, so whoever looses, has to hand
+over both of his animals. Of course, a player who has all four animals of a kind can't be challenged
+for that animal anymore, because noone else has one of that kind to challenge him.
+
+
+
+The Donkey
+
+Whenever the donkey is turned over for auction, the game is immediately interupted. The player whose
+turn it is, deals everybody additional money. One 50 money card at the first donkey, a 100 at the 2nd
+donkey, a 200 at the 3rd, and a 500 at the 4th donkey. When everybody got the new money, the
+donkey is auctioned off normally.
+
+
+
+No more animals to auction off!
+
+When there are no more animals to auction off, people have to make cow trades if they can.
+
+
+
+End of the Game
+
+When there are no more cowtrades to be made and all animals are auctioned off, the game is over.
+The number on the cards shows the value of all the four cards together. Each player multiplies the
+sum of his animals value, with the number of different kinds he collected. Thats his overall score. The
+highest score wins the game. Note, that money isn't worth anything at the end.
+
+Example for the score:
+You have collected: Pigs (650), Dogs (160) and Roosters (10). Sum up the animals values: 650 + 160 +
+10 = 820 points. You collected three kinds of animals, so the score is multiplied with three: 820 x 3 =
+2460 points which is the overall score!
