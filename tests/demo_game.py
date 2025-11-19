@@ -239,17 +239,16 @@ def full_game_simulation(seed=999):
             print(f"    Animals: {', '.join(f'{at.display_name}({count})' for at, count in animal_counts.items())}")
 
     winner = game.get_winner()
-    if winner:
-        print(f"\n👑 Winner: {winner.name} with {winner.calculate_score()} points!")
+    scores = game.get_scores()
+    max_score = max(scores.values()) if scores else 0
+    winners = [game.players[pid] for pid, score in scores.items() if score == max_score]
+
+    if len(winners) > 1:
+        print(f"\n👑 It's a tie between {', '.join(w.name for w in winners)} with {max_score} points!")
+    elif winners:
+        print(f"\n👑 Winner: {winners[0].name} with {max_score} points!")
     else:
-        # Find player with highest score
-        scores = game.get_scores()
-        max_score = max(scores.values())
-        winners = [game.players[pid] for pid, score in scores.items() if score == max_score]
-        if len(winners) > 1:
-            print(f"\n👑 It's a tie between {', '.join(w.name for w in winners)} with {max_score} points!")
-        else:
-            print(f"\n👑 Winner: {winners[0].name} with {max_score} points!")
+        print(f"\n👑 No winner - all players have 0 points!")
 
     print(f"\nTotal turns: {turn_count}")
     print(f"Total actions logged: {len(game.action_history)}")

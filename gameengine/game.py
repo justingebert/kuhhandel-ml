@@ -455,24 +455,21 @@ class Game:
             self.phase = GamePhase.PLAYER_TURN
 
     def is_game_over(self) -> bool:
-        """Check if the game is over."""
-        # Game is over when no animals left and no valid trades possible
+        """Check if the game is over.
+
+        Game ends when all animals are distributed in complete sets of 4.
+        No animals left in deck AND all animals must be in complete sets.
+        """
         if self.animal_deck:
             return False
 
-        # Check if any cow trades are possible
+        # Check if all animals are in complete sets
         for player in self.players:
-            for animal_type in AnimalType.get_all_types():
-                if player.has_animal_type(animal_type):
-                    # Skip if current player has complete set
-                    if player.has_complete_set(animal_type):
-                        continue
-                    for other_player in self.players:
-                        if other_player.player_id != player.player_id:
-                            if other_player.has_animal_type(animal_type):
-                                # Can trade if other player doesn't have complete set
-                                if not other_player.has_complete_set(animal_type):
-                                    return False
+            animal_counts = player.get_animal_counts()
+            for animal_type, count in animal_counts.items():
+                if count != 4:
+                    # Incomplete set found - game must continue
+                    return False
 
         return True
 

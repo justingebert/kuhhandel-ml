@@ -264,25 +264,25 @@ class TestScoring:
         """Test that scores are calculated correctly."""
         player = game.players[0]
 
-        # Give player: 2 cows (200), 1 dog (40) = 240 total
-        # 2 different types = 240 * 2 = 480
+        # Give player: 2 cows, 1 dog (incomplete sets)
+        # Only complete sets of 4 score points, so this should be 0
         for i in range(2):
             player.add_animal(AnimalCard(AnimalType.COW, i))
         player.add_animal(AnimalCard(AnimalType.DOG, 10))
 
         score = player.calculate_score()
-        assert score == 240 * 2  # (100*2 + 40) * 2 types
+        assert score == 0  # No complete sets
 
     def test_complete_set_bonus(self, game):
         """Test scoring with complete sets."""
         player = game.players[0]
 
-        # Give player all 4 horses (value 500 for complete set)
+        # Give player all 4 horses (value 1000 for complete set)
         for i in range(4):
             player.add_animal(AnimalCard(AnimalType.HORSE, i))
 
         score = player.calculate_score()
-        assert score == 500  # 500 * 1 type
+        assert score == 1000  # 1000 * 1 complete set
 
 
 class TestDonkeyBonus:

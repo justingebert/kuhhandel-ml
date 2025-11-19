@@ -63,22 +63,35 @@ class Player:
     def calculate_score(self) -> int:
         """Calculate final score according to game rules.
 
-        Score = (sum of animal values) × (number of different animal types)
+        Score = (sum of complete set values) × (number of complete sets)
+
+        Only complete sets of 4 cards count towards scoring.
+        Each animal type has a value representing all 4 cards together.
+
+        Example: Horse(4), Pig(4), Cow(4) = (1000+650+800) × 3 = 7350 points
         """
         animal_counts = self.get_animal_counts()
         if not animal_counts:
             return 0
 
-        # Sum of animal values
+        # Only count complete sets (4 cards)
+        complete_sets = {animal_type: count
+                        for animal_type, count in animal_counts.items()
+                        if count == 4}
+
+        if not complete_sets:
+            return 0
+
+        # Sum of animal values for complete sets only
         total_value = sum(
-            animal_type.get_value(count)
-            for animal_type, count in animal_counts.items()
+            animal_type.get_value()
+            for animal_type in complete_sets.keys()
         )
 
-        # Number of different types
-        num_types = len(animal_counts)
+        # Number of complete sets
+        num_complete_sets = len(complete_sets)
 
-        return total_value * num_types
+        return total_value * num_complete_sets
 
     def __repr__(self) -> str:
         return f"Player({self.name}, Money: {self.get_total_money()}, Animals: {len(self.animals)})"
