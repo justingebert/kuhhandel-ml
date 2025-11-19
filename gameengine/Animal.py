@@ -3,27 +3,29 @@ from typing import List
 
 
 class AnimalType(Enum):
-    """Enum for different animal types in the game."""
-    CAT = ("Cat", 10, 25, 50, 90)
-    CHICKEN = ("Chicken", 10, 20, 40, 70)
-    COW = ("Cow", 100, 200, 300, 400)
-    DOG = ("Dog", 40, 80, 120, 160)
-    DONKEY = ("Donkey", 50, 100, 150, 200)
-    GOAT = ("Goat", 60, 120, 180, 240)
-    GOOSE = ("Goose", 20, 40, 80, 140)
-    HORSE = ("Horse", 200, 300, 400, 500)
-    LAMB = ("Lamb", 30, 60, 90, 120)
-    PIG = ("Pig", 130, 260, 390, 650)
+    """Enum for different animal types in the game.
 
-    def __init__(self, display_name: str, value_1: int, value_2: int, value_3: int, value_4: int):
+    The points value represents the total points for having all 4 cards of that animal type.
+    Only complete sets of 4 cards score points.
+    """
+    CHICKEN = ("Chicken", 10)
+    GOOSE = ("Goose", 40)
+    CAT = ("Cat", 90)
+    DOG = ("Dog", 160)
+    SHEEP = ("Sheep", 250)
+    GOAT = ("Goat", 350)
+    DONKEY = ("Donkey", 500)
+    PIG = ("Pig", 650)
+    COW = ("Cow", 800)
+    HORSE = ("Horse", 1000)
+
+    def __init__(self, display_name: str, points: int):
         self.display_name = display_name
-        self.values = [value_1, value_2, value_3, value_4]
+        self.points = points
 
-    def get_value(self, count: int) -> int:
-        """Get the total value for a certain count of this animal (1-4)."""
-        if count < 1 or count > 4:
-            return 0
-        return self.values[count - 1]
+    def get_value(self) -> int:
+        """Get the total points for this animal type."""
+        return self.points
 
     @staticmethod
     def get_all_types() -> List['AnimalType']:
