@@ -116,7 +116,7 @@ def full_game_simulation(seed=999):
     random.seed(seed)  # Seed for Bot decisions
 
     turn_count = 0
-    max_turns = 200  # Safety limit
+    max_turns = 500  # Safety limit
 
     while not game.is_game_over() and turn_count < max_turns:
         turn_count += 1
@@ -138,39 +138,47 @@ def full_game_simulation(seed=999):
                 game.round_number += 1
                 continue
             else:
-                print(f"No valid actions in {game.phase.value} phase - game stuck")
-                break
+                raise Exception(f"No valid actions in {game.phase.value} phase - game stuck")
 
         # Simple Bot: Always start auction if possible, otherwise try cow trade
 
         if game.phase == GamePhase.PLAYER_TURN:
             if ActionType.START_AUCTION in valid_actions:
-                animal = game.start_auction()
-                if turn_count % 10 == 1:
-                    print(f"  Player {game.current_player_idx} auctions {animal.animal_type.display_name}")
+                game.start_auction()
 
             elif ActionType.START_COW_TRADE in valid_actions:
-                # Random chance to do a cow trade instead of waiting
-                if random.random() < 0.5:  # 50% chance to initiate trade
+                # When deck is empty, trades are mandatory. Otherwise random chance.
+                should_trade = len(game.animal_deck) == 0 or random.random() < 0.5
+
+                if should_trade:
                     # Find a valid cow trade
                     current_player = game.players[game.current_player_idx]
                     trade_started = False
                     for animal_type in AnimalType.get_all_types():
-                        if current_player.has_animal_type(animal_type):
+                        if current_player.has_animal_type(animal_type) and not current_player.has_complete_set(animal_type):
                             for target_id, target in enumerate(game.players):
                                 if target_id != game.current_player_idx:
                                     if target.has_animal_type(animal_type) and not target.has_complete_set(animal_type):
-                                        # Random offer amount (1-4 cards) - but only if player has money
+                                        # Make an offer - use random cards or at least 1 card (even if it's 0 value)
                                         if len(current_player.money) > 0:
                                             num_cards = random.randint(1, min(4, len(current_player.money)))
                                             offer = current_player.money[:num_cards]
-                                            if offer:
-                                                success = game.start_cow_trade(target_id, animal_type, offer)
-                                                if success:
-                                                    trade_started = True
-                                                    break
+                                        else:
+                                            raise NotImplementedError("No money to offer in trade!")
+
+                                        if offer:
+                                            success = game.start_cow_trade(target_id, animal_type, offer)
+                                            if success:
+                                                trade_started = True
+                                                if turn_count % 10 == 1:
+                                                    print(f"  Player {game.current_player_idx} trades {animal_type.display_name} with Player {target_id}")
+                                                break
                             if trade_started:
                                 break
+            else:
+                # No valid actions - this player should be skipped
+                if turn_count % 10 == 1:
+                    print(f"  Player {game.current_player_idx} has no valid actions")
 
         elif game.phase == GamePhase.AUCTION:
             # Handle auction phase - players bid or auctioneer decides
@@ -260,13 +268,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Run You\'re Bluffing demo game')
-    parser.add_argument('--seed', type=int, default=999, help='Random seed for game (default: 999)')
+    parser.add_argument('--seed', type=int, default=1, help='Random seed for game (default: 999)')
     parser.add_argument('--skip-demos', action='store_true', help='Skip simple demos and only run full game')
     args = parser.parse_args()
-
-    print("="*60)
-    print("YOU'RE BLUFFING - GAME ENGINE TEST")
-    print("="*60)
 
     if not args.skip_demos:
         # Run demos
@@ -274,7 +278,4 @@ if __name__ == "__main__":
         game2 = cow_trade_demo()
 
     game3 = full_game_simulation(seed=args.seed)
-
-    print("\n\n✅ All demos completed successfully!")
-    print("\nThe game engine is ready for ML training!")
 

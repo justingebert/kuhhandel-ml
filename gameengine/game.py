@@ -28,7 +28,7 @@ class ActionType(Enum):
 
 
 class Game:
-    """Main game class for You're Bluffing."""
+    """Main game class for Kuhhandel."""
 
     def __init__(self, num_players: int = 3, seed: Optional[int] = None):
         if num_players < 3 or num_players > 5:
@@ -104,7 +104,10 @@ class Game:
         actions = []
 
         if self.phase == GamePhase.PLAYER_TURN:
-            if self.animal_deck:
+            # When deck is empty, cow trades are MANDATORY if incomplete sets exist
+            deck_empty = len(self.animal_deck) == 0
+
+            if not deck_empty:
                 actions.append(ActionType.START_AUCTION)
 
             # Check if cow trade is possible
@@ -123,6 +126,12 @@ class Game:
                                     break
                     if ActionType.START_COW_TRADE in actions:
                         break
+
+            # If deck is empty and no actions available, but game isn't over,
+            # the player must pass (this shouldn't happen if logic is correct)
+            if deck_empty and not actions and not self.is_game_over():
+                # This means player has only complete sets, skip to next player
+                pass
 
         elif self.phase == GamePhase.AUCTION:
             if player_id == self.current_player_idx:
@@ -345,25 +354,36 @@ class Game:
         return True
 
     def accept_trade_offer(self) -> bool:
-        """Target player accepts the trade offer."""
+        """Target player accepts the trade offer.
+
+        When target accepts, initiator wins and gets animals based on trade rules:
+        - Trade amount = min(initiator_count, target_count)
+        """
         if self.phase != GamePhase.COW_TRADE:
             return False
 
         target = self.players[self.trade_target]
         initiator = self.players[self.trade_initiator]
 
-        # Transfer money and animal
+        # Transfer money
         initiator.remove_money(self.trade_offer)
         target.add_money(self.trade_offer)
 
-        animals_to_transfer = target.remove_animals(self.trade_animal_type, 1)
+        # Determine trade amount: min of what both players have
+        initiator_count = initiator.get_animal_count(self.trade_animal_type)
+        target_count = target.get_animal_count(self.trade_animal_type)
+        trade_amount = min(initiator_count, target_count)
+
+        # Initiator wins - takes trade_amount animals from target
+        animals_to_transfer = target.remove_animals(self.trade_animal_type, trade_amount)
         for animal in animals_to_transfer:
             initiator.add_animal(animal)
 
         self._log_action("accept_trade", {
             "target": target.player_id,
             "initiator": initiator.player_id,
-            "animal": self.trade_animal_type.display_name
+            "animal": self.trade_animal_type.display_name,
+            "animals_transferred": len(animals_to_transfer)
         })
 
         self._end_cow_trade()
@@ -387,7 +407,13 @@ class Game:
         return True
 
     def _resolve_cow_trade(self):
-        """Resolve a cow trade after counter offer."""
+        """Resolve a cow trade after counter offer.
+
+        Trade rules:
+        - If one player has only 1 animal: trade is for 1 animal (even if other has more)
+        - If both have 2 or more: trade is for min(initiator_count, target_count)
+        - Winner takes that many animals from loser
+        """
         initiator = self.players[self.trade_initiator]
         target = self.players[self.trade_target]
 
@@ -400,37 +426,37 @@ class Game:
         target.remove_money(self.trade_counter_offer)
         initiator.add_money(self.trade_counter_offer)
 
-        # Determine winner
+        # Determine trade amount: min of what both players have
+        initiator_count = initiator.get_animal_count(self.trade_animal_type)
+        target_count = target.get_animal_count(self.trade_animal_type)
+        trade_amount = min(initiator_count, target_count)
+
+        # Determine winner and transfer animals
         if offer_value > counter_value:
-            # Initiator wins
-            count = min(target.get_animal_count(self.trade_animal_type),
-                       1 if initiator.get_animal_count(self.trade_animal_type) == 1
-                       else 2)
-            animals = target.remove_animals(self.trade_animal_type, count)
+            # Initiator wins - takes trade_amount animals from target
+            animals = target.remove_animals(self.trade_animal_type, trade_amount)
             for animal in animals:
                 initiator.add_animal(animal)
             winner = "initiator"
         elif counter_value > offer_value:
-            # Target wins
-            count = min(initiator.get_animal_count(self.trade_animal_type),
-                       1 if target.get_animal_count(self.trade_animal_type) == 1
-                       else 2)
-            animals = initiator.remove_animals(self.trade_animal_type, count)
+            # Target wins - takes trade_amount animals from initiator
+            animals = initiator.remove_animals(self.trade_animal_type, trade_amount)
             for animal in animals:
                 target.add_animal(animal)
             winner = "target"
         else:
-            # Tie - would need to bid again (simplified: initiator wins)
-            count = min(target.get_animal_count(self.trade_animal_type), 1)
-            animals = target.remove_animals(self.trade_animal_type, count)
+            # Tie - would need to bid again in real game (simplified: initiator wins 1 card)
+            animals = target.remove_animals(self.trade_animal_type, 1)
             for animal in animals:
                 initiator.add_animal(animal)
             winner = "initiator (tie)"
+            trade_amount = 1
 
         self._log_action("resolve_trade", {
             "winner": winner,
             "offer": offer_value,
-            "counter": counter_value
+            "counter": counter_value,
+            "animals_transferred": len(animals) if 'animals' in locals() else 0
         })
 
         self._end_cow_trade()
@@ -453,6 +479,24 @@ class Game:
             self.phase = GamePhase.GAME_OVER
         else:
             self.phase = GamePhase.PLAYER_TURN
+
+            # If deck is empty, automatically skip players with no valid actions
+            # (those who only have complete sets)
+            if not self.animal_deck:
+                max_skips = self.num_players  # Safety to prevent infinite loop
+                skips = 0
+                while skips < max_skips:
+                    valid_actions = self.get_valid_actions()
+                    if valid_actions or self.is_game_over():
+                        break
+                    # Skip this player - they have only complete sets
+                    self.current_player_idx = (self.current_player_idx + 1) % self.num_players
+                    self.round_number += 1
+                    skips += 1
+
+                # Double-check if game is now over after skipping
+                if self.is_game_over():
+                    self.phase = GamePhase.GAME_OVER
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
