@@ -22,3 +22,7 @@ git clone https://github.com/justingebert/kuhhandel-ml.git
 cd kuhhandel-ml
 poetry install
 ```
+
+
+### notes:
+how will observations be managed? 

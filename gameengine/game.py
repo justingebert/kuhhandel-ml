@@ -136,7 +136,7 @@ class Game:
         elif self.phase == GamePhase.AUCTION:
             if player_id == self.current_player_idx:
                 # Auctioneer can always pass, and buy if there's a high bid
-                actions.append(ActionType.PASS)
+                actions.append(ActionType.PASS)#TODO maybe rename to SELL
                 if self.auction_high_bidder is not None:
                     actions.append(ActionType.BUY_AS_AUCTIONEER)
             else:
@@ -154,6 +154,7 @@ class Game:
 
     def start_auction(self) -> Optional[AnimalCard]:
         """Start an auction by drawing the top animal card."""
+        #TODO check if this should raise an error if deck is empty
         if not self.animal_deck:
             return None
 
@@ -432,8 +433,9 @@ class Game:
         trade_amount = min(initiator_count, target_count)
 
         # Determine winner and transfer animals
-        if offer_value > counter_value:
+        if offer_value >= counter_value:
             # Initiator wins - takes trade_amount animals from target
+            # TIE -> initiator wins
             animals = target.remove_animals(self.trade_animal_type, trade_amount)
             for animal in animals:
                 initiator.add_animal(animal)
@@ -444,13 +446,6 @@ class Game:
             for animal in animals:
                 target.add_animal(animal)
             winner = "target"
-        else:
-            # Tie - would need to bid again in real game (simplified: initiator wins 1 card)
-            animals = target.remove_animals(self.trade_animal_type, 1)
-            for animal in animals:
-                initiator.add_animal(animal)
-            winner = "initiator (tie)"
-            trade_amount = 1
 
         self._log_action("resolve_trade", {
             "winner": winner,

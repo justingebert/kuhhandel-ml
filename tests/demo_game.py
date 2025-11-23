@@ -148,7 +148,7 @@ def full_game_simulation(seed=999):
 
             elif ActionType.START_COW_TRADE in valid_actions:
                 # When deck is empty, trades are mandatory. Otherwise random chance.
-                should_trade = len(game.animal_deck) == 0 or random.random() < 0.5
+                should_trade = len(game.animal_deck) == 0 #or random.random() < 0.5
 
                 if should_trade:
                     # Find a valid cow trade
@@ -158,12 +158,14 @@ def full_game_simulation(seed=999):
                         if current_player.has_animal_type(animal_type) and not current_player.has_complete_set(animal_type):
                             for target_id, target in enumerate(game.players):
                                 if target_id != game.current_player_idx:
-                                    if target.has_animal_type(animal_type) and not target.has_complete_set(animal_type):
+                                    if target.has_animal_type(animal_type):
                                         # Make an offer - use random cards or at least 1 card (even if it's 0 value)
                                         if len(current_player.money) > 0:
                                             num_cards = random.randint(1, min(4, len(current_player.money)))
                                             offer = current_player.money[:num_cards]
                                         else:
+                                            #TODO empty list
+                                            offer = []
                                             raise NotImplementedError("No money to offer in trade!")
 
                                         if offer:
@@ -186,7 +188,10 @@ def full_game_simulation(seed=999):
 
             # Other players bid with some randomness
             has_bidders = False
+            #TODO this should be while loop, it can only loops once, until all players pass
+            #TODO bids are already in the same order but should be randomized
             for player_id in range(game.num_players):
+                player_id = (player_id + 3) % game.num_players
                 if player_id != current_player_id:
                     player = game.players[player_id]
                     # Random chance to bid, and random bid amount
@@ -200,13 +205,12 @@ def full_game_simulation(seed=999):
 
             # Auctioneer decides with randomness
             auctioneer = game.players[current_player_id]
-            # Random threshold between 10 and 30
-            threshold = random.randint(10, 30)
+            # Random threshold between 10 and 30 kauft nur wen günschtig
+            threshold = random.randint(10, 100)
             if game.auction_high_bid <= threshold and auctioneer.get_total_money() >= game.auction_high_bid:
                 if random.random() < 0.6:  # 60% chance to buy
-                    try:
-                        game.auctioneer_buys()
-                    except:
+                    success = game.auctioneer_buys()
+                    if not success:
                         game.auctioneer_passes()
                 else:
                     game.auctioneer_passes()
@@ -223,6 +227,7 @@ def full_game_simulation(seed=999):
             # Random chance to accept vs counter
             if random.random() < 0.3:  # 30% chance to just accept
                 game.accept_trade_offer()
+            #TODO target cant know the offer value only the length of cards
             elif target.get_total_money() > offer_value + 10:
                 # Counter with random amount (1-5 cards)
                 num_cards = random.randint(1, min(5, len(target.money)))
