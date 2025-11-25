@@ -105,16 +105,16 @@ class RandomAgent(Agent):
         return Actions.pass_action()
 
 
-def full_game_simulation(seed=999):
+def full_game_simulation(seed=999, players=5):
     """Simulate a full game using GameController."""
     print("\n\n🎲 FULL GAME SIMULATION (Controller)")
     print(f"Running a complete game with RandomAgents (seed={seed})...\n")
 
-    game = Game(num_players=5, seed=seed)
+    game = Game(num_players=players, seed=seed)
     game.setup()
     
     # Create agents
-    agents = [RandomAgent(f"Bot {i}") for i in range(5)]
+    agents = [RandomAgent(f"Bot {i}") for i in range(players)]
     
     # Create controller
     controller = GameController(game, agents)
@@ -137,6 +137,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run You\'re Bluffing demo game')
     parser.add_argument('--seed', type=int, default=1, help='Random seed for game')
+    parser.add_argument('--players', type=int, default=3, help='Number of players (1-5')
     args = parser.parse_args()
 
-    full_game_simulation(seed=args.seed)
+    full_game_simulation(seed=args.seed, players=args.players)
