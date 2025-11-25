@@ -1,10 +1,14 @@
 import os
 import sys
+import random
+from typing import List
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gameengine import Game, AnimalType
+from gameengine import Game, AnimalType, ActionType, GamePhase
+from gameengine.controller import GameController, Agent
+from gameengine.actions import GameAction
 
 
 def print_game_state(game: Game):
@@ -27,244 +31,103 @@ def print_game_state(game: Game):
     print("="*60)
 
 
-def simple_auction_demo():
-    """Demonstrate a simple auction."""
-    print("\n🎮 SIMPLE AUCTION DEMO")
-    print("Starting a 3-player game...\n")
+class RandomAgent(Agent):
+    """A simple agent that makes random valid moves."""
 
-    game = Game(num_players=3, seed=42)
-    game.setup()
+    def get_action(self, game: Game, valid_actions: List[ActionType]) -> GameAction:
+        from gameengine.actions import Actions
+        
+        player = game.players[self.player_id]
+        
+        # 1. Auction Bidding
+        if ActionType.BID in valid_actions:
+            min_bid = game.auction_high_bid + 10
+            # Bid if rich enough and random chance
+            if player.get_total_money() >= min_bid and random.random() < 0.5:
+                return Actions.bid(amount=min_bid)
+            return Actions.pass_action()
 
-    print_game_state(game)
+        # 2. Auctioneer Decision
+        if ActionType.BUY_AS_AUCTIONEER in valid_actions:
+            # Buy if cheap
+            if game.auction_high_bid < 50 and player.get_total_money() >= game.auction_high_bid:
+                return Actions.buy_as_auctioneer()
+            return Actions.pass_action()
 
-    # Player 0 starts an auction
-    print("\n📢 Player 0 starts an auction...")
-    animal = game.start_auction()
-    print(f"Animal up for auction: {animal.animal_type.display_name}")
-    print_game_state(game)
+        # 3. Cow Trade Response
+        if ActionType.COUNTER_OFFER in valid_actions:
+            # Counter if rich enough
+            offer_value = sum(c.value for c in game.trade_offer)
+            if player.get_total_money() > offer_value + 10 and random.random() < 0.5:
+                # Pick random cards
+                num_cards = random.randint(1, min(4, len(player.money)))
+                return Actions.counter_offer(money_cards=player.money[:num_cards])
+            return Actions.accept_offer()
 
-    # Player 1 bids 10
-    print("\n💰 Player 1 bids 10...")
-    success = game.place_bid(1, 10)
-    print(f"Bid successful: {success}")
+        # 4. Main Turn Decision
+        if ActionType.START_AUCTION in valid_actions and ActionType.START_COW_TRADE in valid_actions:
+             # Prefer auction unless deck empty
+             if not game.animal_deck:
+                 action_type = ActionType.START_COW_TRADE
+             else:
+                 action_type = random.choice([ActionType.START_AUCTION, ActionType.START_COW_TRADE])
+        elif ActionType.START_AUCTION in valid_actions:
+            action_type = ActionType.START_AUCTION
+        elif ActionType.START_COW_TRADE in valid_actions:
+            action_type = ActionType.START_COW_TRADE
+        else:
+            return Actions.pass_action()
 
-    # Player 2 bids 20
-    print("\n💰 Player 2 bids 20...")
-    success = game.place_bid(2, 20)
-    print(f"Bid successful: {success}")
+        if action_type == ActionType.START_AUCTION:
+            return Actions.start_auction()
+        
+        if action_type == ActionType.START_COW_TRADE:
+            # Find a valid trade
+            for animal_type in AnimalType.get_all_types():
+                if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
+                    for target_id, target in enumerate(game.players):
+                        if target_id != self.player_id and target.has_animal_type(animal_type):
+                            # Can trade even with 0 money (bluffing)
+                            if len(player.money) > 0:
+                                num_cards = random.randint(1, min(4, len(player.money)))
+                                money_cards = player.money[:num_cards]
+                            else:
+                                money_cards = []
+                            
+                            return Actions.start_cow_trade(
+                                target_id=target_id,
+                                animal_type=animal_type,
+                                money_cards=money_cards
+                            )
+            
+            return Actions.pass_action()
 
-    # Auctioneer (Player 0) passes
-    print("\n✋ Player 0 (auctioneer) passes...")
-    game.auctioneer_passes()
-
-    print_game_state(game)
-
-    return game
-
-
-def cow_trade_demo():
-    """Demonstrate a cow trade."""
-    print("\n\n🐮 COW TRADE DEMO")
-    print("Setting up a scenario where players can trade...\n")
-
-    game = Game(num_players=3, seed=123)
-    game.setup()
-
-    # Give both player 0 and player 1 a cow
-    from gameengine import AnimalCard
-    cow_card_1 = AnimalCard(AnimalType.COW, 100)
-    cow_card_2 = AnimalCard(AnimalType.COW, 101)
-
-    game.players[0].add_animal(cow_card_1)
-    game.players[1].add_animal(cow_card_2)
-
-    print_game_state(game)
-
-    # Player 0 initiates a cow trade
-    print("\n🤝 Player 0 initiates a cow trade with Player 1 for Cows...")
-    offer_cards = [game.players[0].money[0], game.players[0].money[1]]  # Offer some money
-    print(f"Offering: {[str(c) for c in offer_cards]}")
-
-    success = game.start_cow_trade(1, AnimalType.COW, offer_cards)
-    print(f"Trade initiated: {success}")
-
-    print_game_state(game)
-
-    # Player 1 counters with a higher offer
-    print("\n💪 Player 1 makes a counter offer...")
-    counter_cards = [game.players[1].money[0], game.players[1].money[1], game.players[1].money[2]]
-    print(f"Counter offer: {[str(c) for c in counter_cards]}")
-
-    game.counter_trade_offer(counter_cards)
-
-    print_game_state(game)
-
-    return game
+        return Actions.pass_action()
 
 
 def full_game_simulation(seed=999):
-    """Simulate a full game with simple Bot."""
-    print("\n\n🎲 FULL GAME SIMULATION")
-    print(f"Running a complete game with simple AI players (seed={seed})...\n")
+    """Simulate a full game using GameController."""
+    print("\n\n🎲 FULL GAME SIMULATION (Controller)")
+    print(f"Running a complete game with RandomAgents (seed={seed})...\n")
 
-    import random
-    from gameengine import ActionType, GamePhase
-
-    # Use the game seed for Bot decisions too
     game = Game(num_players=5, seed=seed)
     game.setup()
-    random.seed(seed)  # Seed for Bot decisions
-
-    turn_count = 0
-    max_turns = 500  # Safety limit
-
-    while not game.is_game_over() and turn_count < max_turns:
-        turn_count += 1
-
-        if turn_count % 10 == 1:  # Print every 10 turns
-            print(f"\nTurn {turn_count}")
-            print_game_state(game)
-
-        # In cow trade phase, check valid actions for target player, not initiator
-        if game.phase == GamePhase.COW_TRADE:
-            valid_actions = game.get_valid_actions(game.trade_target)
-        else:
-            valid_actions = game.get_valid_actions()
-
-        if not valid_actions:
-            # If player has no valid actions in PLAYER_TURN phase, skip their turn
-            if game.phase == GamePhase.PLAYER_TURN:
-                game.current_player_idx = (game.current_player_idx + 1) % game.num_players
-                game.round_number += 1
-                continue
-            else:
-                raise Exception(f"No valid actions in {game.phase.value} phase - game stuck")
-
-        # Simple Bot: Always start auction if possible, otherwise try cow trade
-
-        if game.phase == GamePhase.PLAYER_TURN:
-            if ActionType.START_AUCTION in valid_actions:
-                game.start_auction()
-
-            elif ActionType.START_COW_TRADE in valid_actions:
-                # When deck is empty, trades are mandatory. Otherwise random chance.
-                should_trade = len(game.animal_deck) == 0 #or random.random() < 0.5
-
-                if should_trade:
-                    # Find a valid cow trade
-                    current_player = game.players[game.current_player_idx]
-                    trade_started = False
-                    for animal_type in AnimalType.get_all_types():
-                        if current_player.has_animal_type(animal_type) and not current_player.has_complete_set(animal_type):
-                            for target_id, target in enumerate(game.players):
-                                if target_id != game.current_player_idx:
-                                    if target.has_animal_type(animal_type):
-                                        # Make an offer - use random cards or at least 1 card (even if it's 0 value)
-                                        if len(current_player.money) > 0:
-                                            num_cards = random.randint(1, min(4, len(current_player.money)))
-                                            offer = current_player.money[:num_cards]
-                                        else:
-                                            #TODO empty list
-                                            offer = []
-                                            raise NotImplementedError("No money to offer in trade!")
-
-                                        if offer:
-                                            success = game.start_cow_trade(target_id, animal_type, offer)
-                                            if success:
-                                                trade_started = True
-                                                if turn_count % 10 == 1:
-                                                    print(f"  Player {game.current_player_idx} trades {animal_type.display_name} with Player {target_id}")
-                                                break
-                            if trade_started:
-                                break
-            else:
-                # No valid actions - this player should be skipped
-                if turn_count % 10 == 1:
-                    print(f"  Player {game.current_player_idx} has no valid actions")
-
-        elif game.phase == GamePhase.AUCTION:
-            # Handle auction phase - players bid or auctioneer decides
-            current_player_id = game.current_player_idx
-
-            # Other players bid with some randomness
-            has_bidders = False
-            #TODO this should be while loop, it can only loops once, until all players pass
-            #TODO bids are already in the same order but should be randomized
-            for player_id in range(game.num_players):
-                player_id = (player_id + 3) % game.num_players
-                if player_id != current_player_id:
-                    player = game.players[player_id]
-                    # Random chance to bid, and random bid amount
-                    if player.get_total_money() >= game.auction_high_bid + 10:
-                        if random.random() < 0.7:  # 70% chance to bid
-                            bid_amount = game.auction_high_bid + random.choice([10, 20, 30])
-                            if player.get_total_money() >= bid_amount:
-                                success = game.place_bid(player_id, bid_amount)
-                                if success:
-                                    has_bidders = True
-
-            # Auctioneer decides with randomness
-            auctioneer = game.players[current_player_id]
-            # Random threshold between 10 and 30 kauft nur wen günschtig
-            threshold = random.randint(10, 100)
-            if game.auction_high_bid <= threshold and auctioneer.get_total_money() >= game.auction_high_bid:
-                if random.random() < 0.6:  # 60% chance to buy
-                    success = game.auctioneer_buys()
-                    if not success:
-                        game.auctioneer_passes()
-                else:
-                    game.auctioneer_passes()
-            else:
-                game.auctioneer_passes()
-
-        elif game.phase == GamePhase.COW_TRADE:
-            # Handle cow trade response
-            target = game.players[game.trade_target]
-
-            # Target makes a decision with randomness
-            offer_value = sum(card.value for card in game.trade_offer)
-
-            # Random chance to accept vs counter
-            if random.random() < 0.3:  # 30% chance to just accept
-                game.accept_trade_offer()
-            #TODO target cant know the offer value only the length of cards
-            elif target.get_total_money() > offer_value + 10:
-                # Counter with random amount (1-5 cards)
-                num_cards = random.randint(1, min(5, len(target.money)))
-                counter = target.money[:num_cards]
-                if counter and sum(card.value for card in counter) > offer_value:
-                    game.counter_trade_offer(counter)
-                else:
-                    game.accept_trade_offer()
-            else:
-                game.accept_trade_offer()
-
+    
+    # Create agents
+    agents = [RandomAgent(f"Bot {i}") for i in range(5)]
+    
+    # Create controller
+    controller = GameController(game, agents)
+    
+    # Run
+    scores = controller.run(max_turns=500)
+    
     print("\n\n🏆 GAME OVER!")
     print_game_state(game)
-
-    scores = game.get_scores()
+    
     print("\nFinal Scores:")
     for player_id, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
-        player = game.players[player_id]
-        animal_counts = player.get_animal_counts()
-        print(f"  {player.name}: {score} points")
-        if animal_counts:
-            print(f"    Animals: {', '.join(f'{at.display_name}({count})' for at, count in animal_counts.items())}")
-
-    winner = game.get_winner()
-    scores = game.get_scores()
-    max_score = max(scores.values()) if scores else 0
-    winners = [game.players[pid] for pid, score in scores.items() if score == max_score]
-
-    if len(winners) > 1:
-        print(f"\n👑 It's a tie between {', '.join(w.name for w in winners)} with {max_score} points!")
-    elif winners:
-        print(f"\n👑 Winner: {winners[0].name} with {max_score} points!")
-    else:
-        print(f"\n👑 No winner - all players have 0 points!")
-
-    print(f"\nTotal turns: {turn_count}")
-    print(f"Total actions logged: {len(game.action_history)}")
+        print(f"  Player {player_id}: {score} points")
 
     return game
 
@@ -273,14 +136,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Run You\'re Bluffing demo game')
-    parser.add_argument('--seed', type=int, default=1, help='Random seed for game (default: 999)')
-    parser.add_argument('--skip-demos', action='store_true', help='Skip simple demos and only run full game')
+    parser.add_argument('--seed', type=int, default=1, help='Random seed for game')
     args = parser.parse_args()
 
-    if not args.skip_demos:
-        # Run demos
-        game1 = simple_auction_demo()
-        game2 = cow_trade_demo()
-
-    game3 = full_game_simulation(seed=args.seed)
-
+    full_game_simulation(seed=args.seed)
