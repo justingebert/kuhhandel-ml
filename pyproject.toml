@@ -9,7 +9,7 @@ authors = [
 ]
 readme = "Readme.md"
 requires-python = ">=3.11, <3.15"
-dependencies = []
+dependencies = ["gymnasium (>=1.2.2,<2.0.0)", "stable-baselines3 (>=2.7.0,<3.0.0)", "sb3-contrib (>=2.7.0,<3.0.0)"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
