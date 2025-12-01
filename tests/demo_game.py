@@ -7,7 +7,8 @@ from typing import List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gameengine import Game, AnimalType, ActionType, GamePhase
-from gameengine.controller import GameController, Agent
+from gameengine.controller import GameController
+from gameengine.agent import Agent
 from gameengine.actions import GameAction
 
 

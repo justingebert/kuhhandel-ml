@@ -1,32 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import List, Optional
-import random
+from typing import List
 
-from .game import Game, GamePhase, ActionType, AnimalType
-from .actions import GameAction
-
-
-class Agent(ABC):
-    """Abstract base class for a game agent."""
-
-    def __init__(self, name: str):
-        self.name = name
-        self.player_id: Optional[int] = None
-
-    def set_player_id(self, player_id: int):
-        self.player_id = player_id
-
-    @abstractmethod
-    def get_action(self, game: Game, valid_actions: List[ActionType]) -> GameAction:
-        """
-        Decide on an action to take.
-        Returns a typed action dictionary.
-        """
-        pass
-
-    def notify(self, event: str, data: dict):
-        """Receive notification about game events (optional)."""
-        pass
+from .agent import Agent
+from .game import Game, GamePhase, ActionType
 
 
 class GameController:
@@ -94,8 +69,7 @@ class GameController:
         Handle the dynamic auction loop.
         Iterates through players asking for bids until everyone passes.
         """
-        from .actions import BidAction
-        
+
         auctioneer_id = self.game.current_player_idx
         highest_bid_changed = True
         
@@ -142,8 +116,7 @@ class GameController:
 
     def _handle_cow_trade_phase(self):
         """Handle the response to a cow trade."""
-        from .actions import CounterOfferAction
-        
+
         target_id = self.game.trade_target
         agent = self.agents[target_id]
         

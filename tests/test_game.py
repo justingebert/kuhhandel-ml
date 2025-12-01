@@ -9,7 +9,8 @@ from gameengine import Game, AnimalType, GamePhase, ActionType
 from gameengine.Animal import AnimalCard
 from gameengine.Money import MoneyDeck, MoneyCard
 from gameengine.Player import Player
-from gameengine.controller import GameController, Agent
+from gameengine.controller import GameController
+from gameengine.agent import Agent
 from gameengine.actions import Actions, GameAction
 
 
