@@ -123,7 +123,7 @@ def full_game_simulation(seed=999, players=5):
     # Run
     scores = controller.run(max_turns=500)
     
-    print("\n\n🏆 GAME OVER!")
+    print("\n\n GAME OVER!")
     print_game_state(game)
     
     print("\nFinal Scores:")
@@ -135,9 +135,9 @@ def full_game_simulation(seed=999, players=5):
 
 if __name__ == "__main__":
     import argparse
-
+    
     parser = argparse.ArgumentParser(description='Run You\'re Bluffing demo game')
-    parser.add_argument('--seed', type=int, default=1, help='Random seed for game')
+    parser.add_argument('--seed', type=int, default=random.random(), help='Random seed for game')
     parser.add_argument('--players', type=int, default=3, help='Number of players (1-5')
     args = parser.parse_args()
 
