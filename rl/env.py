@@ -2,6 +2,8 @@ from typing import Optional, List
 import gymnasium as gym
 from gymnasium import spaces
 
+from gymnasium.spaces import Box, Dict, Discrete, MultiBinary, MultiDiscrete
+
 from gameengine.actions import GameAction
 from gameengine.agent import Agent
 from gameengine.controller import GameController
@@ -16,7 +18,23 @@ class KuhhandelEnv(gym.Env):
 
         self.num_players = num_players
 
-        self.action_space = spaces.Discrete(7)
+        self.action_space = Dict(  
+        {
+        "Handeln/Versteigern": Discrete(2),
+        "Handeln": Dict({
+                "Gegner": Discrete(3),
+                "Tier": Discrete(10),
+                "Gebot": Discrete(33)}), # (7 + 4) * 3
+        
+        "Versteigern": Dict({
+                "Bieten/Passen/Vorkaufen": Discrete(3),
+                "Bieten": Discrete(33),})
+        })
+
+
+
+
+
         self.observation_space = None #obs vector
         
         self.game: Optional[Game] = None
@@ -41,3 +59,7 @@ class KuhhandelEnv(gym.Env):
     def _decode_action(self, action_int: int, game: Game) -> GameAction:
         """Decode an integer action to a GameAction."""
         pass
+
+
+
+
