@@ -11,39 +11,54 @@ from gameengine.game import Game
 from rl.rl_agent import RLAgent
 from tests.demo_game import RandomAgent
 
+
 class KuhhandelEnv(gym.Env):
-    
+
     def __init__(self, num_players: int = 3):
         super().__init__()
 
         self.num_players = num_players
+        self.action_space = Dict(
+            {
+                # decide wether to start an auction or trade with another player
+                "auction_or_trade": Discrete(2),
+                "auction": Dict(
+                    {
+                        # Bids from 0 to 2820 in card logic - 33 is the max money for 3 players, the agent can have all 33
+                        "auction_bid": MultiBinary(33),
+                        # Pass (Not Smash), pass as bidder
+                        "auction_pass": Discrete(1),
+                        "auction_buy_or_sell_as_auctioneer": Discrete(2),
+                    }
+                ),
+                "trade": Dict(
+                    {
+                        "trade_enemy": Discrete(3),
+                        "trade_animal": Discrete(10),
+                        "trade_offer": MultiBinary(33),
+                        "trade_counter": MultiBinary(33),
+                    }
+                ),
+            }
+        )
 
-        self.action_space = Dict(  
-        {
-        "Handeln/Versteigern": Discrete(2),
-        "Handeln": Dict({
-                "Gegner": Discrete(3),
-                "Tier": Discrete(10),
-                "Gebot": Discrete(33)}), # (7 + 4) * 3
-        
-        "Versteigern": Dict({
-                "Bieten/Passen/Vorkaufen": Discrete(3),
-                "Bieten": Discrete(33),})
-        })
+        # broken down observation space for first runs
+        self.observation_space = Dict(
+            {
+                "animals_player_0": Discrete(40),
+                "animals_player_1": Discrete(40),
+                "animals_player_2": Discrete(40),
+                "own_money": MultiBinary(33),
+            }
+        )
 
-
-
-
-
-        self.observation_space = None #obs vector
-        
         self.game: Optional[Game] = None
         self.controller: Optional[GameController] = None
         self.agents: List[Agent] = []
-        
+
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
-        
+
         self.game = Game(num_players=self.num_players, seed=seed).setup()
 
         self.agents = []
@@ -52,14 +67,9 @@ class KuhhandelEnv(gym.Env):
         # Random agents for opponents
         for i in range(1, self.num_players):
             self.agents.append(RandomAgent(f"Random_{i}"))
-            
-        self.controller = GameController(self.game, self.agents)
 
+        self.controller = GameController(self.game, self.agents)
 
     def _decode_action(self, action_int: int, game: Game) -> GameAction:
         """Decode an integer action to a GameAction."""
         pass
-
-
-
-
