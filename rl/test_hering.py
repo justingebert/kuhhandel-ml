@@ -6,12 +6,14 @@ from gymnasium.spaces import Box, Dict, Discrete, MultiBinary, MultiDiscrete
 # Discrete action space (button presses)
 env = gym.make("CartPole-v1")
 env.action_space = Dict({
-                "Gegner": Discrete(3),
-                "Tier": Discrete(10),
-                "Gebot": MultiBinary(33), # (7 + 4) * 3,
-                "Bieten": MultiBinary(33),
-                "Passen": Discrete(3)
+                # "Gegner": Discrete(3),
+                # "Tier": Discrete(10),
+                # "Gebot": MultiBinary(33), # (7 + 4) * 3,
+                "Bieten": MultiBinary(33)
+                # "Passen": Discrete(3)
         })
+
+env.action_space = MultiBinary(33)
 
 env.observation_space = Dict({
         "Game_phase": Discrete(100),  # Number of round, gamestate wird die Entscheidung nie beeinflussen, da durch maskieren des action space irrelevant
@@ -27,18 +29,18 @@ env.observation_space = Dict({
         "Current_auction_highest_bidder": Discrete(3),
 })
 
-env.action_space = Dict({
-    "move": Discrete(2),  # Left or right
-    "jump": Discrete(2),  # Jump or not                 # probability=np.array([0.1,0.9], dtype=np.float64)
-})
+# env.action_space = Dict({
+#     "move": Discrete(2),  # Left or right
+#     "jump": Discrete(2),  # Jump or not                 # probability=np.array([0.1,0.9], dtype=np.float64)
+# })
 
-print(env.action_space.sample(mask={"move": np.array([0,1], dtype=np.int8), "jump": np.array([0,1], dtype=np.int8)}))  # Sample action based on given probabilities
-print(env.action_space.sample(probability={"move": np.array([0.5,0.5], dtype=np.float64), "jump": np.array([0.5,0.5], dtype=np.float64)}))
+# print(env.action_space(mask={"move": np.array([0,1], dtype=np.int8), "jump": np.array([0,1], dtype=np.int8)}))  # Sample action based on given probabilities
+# print(env.action_space.sample(probability={"move": np.array([0.5,0.5], dtype=np.float64), "jump": np.array([0.5,0.5], dtype=np.float64)}))
 
 
     
-# print(f"Action space: {env.action_space}")  # Discrete(2) - left or right
-# print(f"Sample action: {env.action_space.sample()}")  # 0 or 1
+print(f"Action space: {env.action_space}")  # Discrete(2) - left or right
+print(f"Sample action: {env.action_space.sample(probability=(np.ones(33)*1/10))}")  # 0 or 1
 
 # Box observation space (continuous values)
 #print(f"Observation space: {env.observation_space}")  # Box with 4 values

@@ -25,7 +25,7 @@ class KuhhandelEnv(gym.Env):
                 "auction": Dict(
                     {
                         # Bids from 0 to 2820 in card logic - 33 is the max money for 3 players, the agent can have all 33
-                        "auction_bid": MultiBinary(33),
+                        "auction_bid": MultiBinary(33), # or discrete(282)
                         # Pass (Not Smash), pass as bidder
                         "auction_pass": Discrete(1),
                         "auction_buy_or_sell_as_auctioneer": Discrete(2),
@@ -35,12 +35,14 @@ class KuhhandelEnv(gym.Env):
                     {
                         "trade_enemy": Discrete(3),
                         "trade_animal": Discrete(10),
-                        "trade_offer": MultiBinary(33),
-                        "trade_counter": MultiBinary(33),
+                        "trade_offer": MultiBinary(33), # or discrete(282)
+                        "trade_counter": MultiBinary(33), # or discrete(282)
                     }
                 ),
             }
         )
+
+
 
         # broken down observation space for first runs
         self.observation_space = Dict(
@@ -48,13 +50,19 @@ class KuhhandelEnv(gym.Env):
                 "animals_player_0": Discrete(40),
                 "animals_player_1": Discrete(40),
                 "animals_player_2": Discrete(40),
-                "own_money": MultiBinary(33),
+                "own_money": MultiBinary(33), # or discrete(282)
             }
         )
 
         self.game: Optional[Game] = None
         self.controller: Optional[GameController] = None
         self.agents: List[Agent] = []
+        self.rl_agent_id = 0 # RL agent is always player 0
+        
+        self.episode_step = 0
+        self.max_steps = 500
+
+    
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
@@ -69,6 +77,33 @@ class KuhhandelEnv(gym.Env):
             self.agents.append(RandomAgent(f"Random_{i}"))
 
         self.controller = GameController(self.game, self.agents)
+        
+        self.episode_steps = 0
+        
+        observation = self._get_observation()
+        info = {}
+        
+        return observation, info
+        
+    def step(self, action):
+        """
+        Execute one step in the environment.
+        
+        Args:
+            action: TODO
+            
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        self.episode_steps += 1
+        
+        self.agents[self.rl_agent_id].set_action(action)
+    
+    
+    def _get_observation(self):
+        """Get the current observation for the RL agent."""
+        pass
+    
 
     def _decode_action(self, action_int: int, game: Game) -> GameAction:
         """Decode an integer action to a GameAction."""

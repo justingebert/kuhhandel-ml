@@ -57,3 +57,12 @@ TODO
 
 - reward functions
 - algorithms for imperfect information games
+
+
+chose auction / trade  --> alles 0 außer auction trade
+        bieten (33) / passen
+        vorkauf / verkaufen
+    wlecher gegner? 
+    welches tier?
+    welches welche summme?
+    welches gegengebot?
