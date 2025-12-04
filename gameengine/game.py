@@ -291,23 +291,26 @@ class Game:
         # Sort cards by value
         sorted_cards = sorted(money_cards, key=lambda c: c.value)
 
-        # Try to find exact match first
-        for i in range(len(sorted_cards)):
-            for j in range(i + 1, len(sorted_cards) + 1):
-                subset = sorted_cards[i:j]
-                total = calculate_total_value(subset)
-                if total == amount:
-                    return subset
+        # Zahlungskombinationen
+        reachable = {0: []}
+        for x in sorted_cards:
+            new = {}
+            for s, combo in reachable.items():
+                ns = s + x.value
+                if ns not in reachable and ns not in new:
+                    new[ns] = combo + [x]
+            reachable.update(new)
 
-        # If no exact match, find smallest overpayment
-        for i in range(len(sorted_cards)):
-            for j in range(i + 1, len(sorted_cards) + 1):
-                subset = sorted_cards[i:j]
-                total = calculate_total_value(subset)
-                if total >= amount:
-                    return subset
-
-        return []
+        # exakte Lösung
+        if amount in reachable:
+            return reachable[amount]
+        
+        # Fallback: Overpay
+        bigger = [x for x in new if x >= amount]
+        if bigger:
+            return new[min(bigger)]
+        
+        return [] # BrokeBoy
 
     def _end_auction(self):
         """End the auction and move to next turn."""
