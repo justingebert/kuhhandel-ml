@@ -310,7 +310,8 @@ class Game:
         if bigger:
             return new[min(bigger)]
         
-        return [] # BrokeBoy
+        # return [] # BrokeBoy
+        raise ValueError("No payment possible")
 
     def _end_auction(self):
         """End the auction and move to next turn."""
