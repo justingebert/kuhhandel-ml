@@ -147,7 +147,8 @@ class Game:
                 actions.append(game_actions.Actions.pass_action())
                 
                 if self.auction_high_bidder is not None:
-                    actions.append(game_actions.Actions.buy_as_auctioneer())
+                    if self.auction_high_bid < self.players[player_id].get_total_money():
+                        actions.append(game_actions.Actions.buy_as_auctioneer())
             else:
                 # Other players can bid
                 actions.append(game_actions.Actions.pass_action())
