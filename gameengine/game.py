@@ -16,7 +16,7 @@ class GamePhase(Enum):
     GAME_OVER = "game_over"
 
 
-class ActionType(Enum): # Nach actions.py verschiebnen, dann muss auch nicht lokal importiert werden.
+class ActionType(Enum):
     """Types of actions players can take."""
     START_AUCTION = "start_auction"
     START_COW_TRADE = "start_cow_trade"
@@ -114,17 +114,9 @@ class Game:
                 actions.append(game_actions.Actions.start_auction())
 
             # Check if cow trade is possible
+            # Generate all possible money combinations once for the player
+            money_combinations = self._generate_money_combinations(player.money)
             
-            # Generate valid money offers
-            # For trades: all unique values + bluffing options
-            # First, separate 0s from non-0s
-            zeros = [c for c in player.money if c.value == 0]
-            non_zeros = [c for c in player.money if c.value > 0]
-            
-            # Map of amount -> combination (using non-zeros)
-            # Use the "strict" logic (one combo per amount)
-            reachable_combos = self._generate_unique_money_combinations_map(non_zeros)
-
             for animal_type in AnimalType.get_all_types():
                 if player.has_animal_type(animal_type):
                     # Can't trade if current player has complete set
@@ -136,29 +128,13 @@ class Game:
                             if other_player.has_animal_type(animal_type):
                                 # Can only trade if other player doesn't have complete set
                                 if not other_player.has_complete_set(animal_type):
-                                    # Create actions for each valid money combination
-                                    # Base variations from reachable amounts
-                                    for amount, base_combo in reachable_combos.items():
-                                        # Base Action (only if we have non-zeros or if base is allowed? 
-                                        # Usually 0 offer is valid (bluff), but if base_combo is empty, it means value 0.
-                                        # If base_combo is empty and we have NO zeros, it's an empty offer (valid?).
-                                        # Let's assume empty offer is 0 value and valid.
-                                        
-                                        # Add Base Action
+                                    # Create an action for each valid money combination
+                                    for combo in money_combinations:
                                         actions.append(game_actions.Actions.start_cow_trade(
                                             target_id=other_player.player_id,
                                             animal_type=animal_type,
-                                            money_cards=base_combo
+                                            money_cards=combo
                                         ))
-                                        
-                                        # Bluffing variations: Add N zeros
-                                        for z_count in range(1, len(zeros) + 1):
-                                            bluff_combo = base_combo + zeros[:z_count]
-                                            actions.append(game_actions.Actions.start_cow_trade(
-                                                target_id=other_player.player_id,
-                                                animal_type=animal_type,
-                                                money_cards=bluff_combo
-                                            ))
 
             # If deck is empty and no actions available, but game isn't over,
             # the player must pass (should usually not happen if logic is correct)
@@ -179,19 +155,13 @@ class Game:
                 # Generate valid bids
                 # Valid bid > current high bid
                 # Step size 10 is standard convention
-                # Bids MUST use specific cards now.
-                # Combinations map creates EXACT sums.
-                # So we can only bid what we can exactly pay.
-                # Using ALL money (including 0s? 0s don't help pay bid).
-                
-                reachable_combos = self._generate_unique_money_combinations_map(player.money)
-                
                 start_bid = self.auction_high_bid + 10
-                max_bid = calculate_total_value(player.money)
+                max_bid = player.get_total_money()
                 
+                # Even if you can't outbid, you can't bid.
+                # If start_bid > max_bid, no bid actions added.
                 for amount in range(start_bid, max_bid + 1, 10):
-                    if amount in reachable_combos:
-                        actions.append(game_actions.Actions.bid(reachable_combos[amount]))
+                    actions.append(game_actions.Actions.bid(amount))
 
         elif self.phase == GamePhase.COW_TRADE:
             if player_id == self.trade_target and not self.trade_counter_offer:
@@ -199,20 +169,9 @@ class Game:
                 actions.append(game_actions.Actions.accept_offer())
                 
                 # Counter offer options
-                # Same logic as trade offer: unique sums + bluffs
-                zeros = [c for c in player.money if c.value == 0]
-                non_zeros = [c for c in player.money if c.value > 0]
-                reachable_combos = self._generate_unique_money_combinations_map(non_zeros)
-                if 0 not in reachable_combos:
-                    reachable_combos[0] = []
-                
-                for amount, base_combo in reachable_combos.items():
-                    # Base
-                    actions.append(game_actions.Actions.counter_offer(money_cards=base_combo))
-                    # Bluffs
-                    for z_count in range(1, len(zeros) + 1):
-                        bluff_combo = base_combo + zeros[:z_count]
-                        actions.append(game_actions.Actions.counter_offer(money_cards=bluff_combo))
+                money_combinations = self._generate_money_combinations(player.money)
+                for combo in money_combinations:
+                    actions.append(game_actions.Actions.counter_offer(money_cards=combo))
 
         return actions
 
@@ -561,26 +520,58 @@ class Game:
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
 
-    def _generate_unique_money_combinations_map(self, money_cards: List[MoneyCard]) -> Dict[int, List[MoneyCard]]:
-        """Generate a map of reachable sums to the specific cards that form them.
-        
-        Uses logic similar to _select_payment_cards to ensure unique combinations for each sum,
-        prioritizing larger cards to match user preference.
-        """
-        # Sort cards by value (Reversed weil immer mit größtem schein bezahlt werden soll)
-        sorted_cards = sorted(money_cards, key=lambda c: c.value, reverse=True)
+    def _generate_money_combinations(self, money_cards: List[MoneyCard]) -> List[List[MoneyCard]]:
+        """Generate all unique combinations of money cards based on value.
 
-        # Zahlungskombinationen
-        reachable = {0: []}
-        for x in sorted_cards:
-            new = {}
-            for s, combo in reachable.items():
-                ns = s + x.value
-                if ns not in reachable and ns not in new:
-                    new[ns] = combo + [x]
-            reachable.update(new)
+        Returns a list of card lists. For multiple cards of the same value,
+        it uses the specific card instances ensuring validity.
+        """
+        import itertools
+        from collections import Counter
+
+        # Group cards by value to key access
+        cards_by_value = {}
+        for card in money_cards:
+            if card.value not in cards_by_value:
+                cards_by_value[card.value] = []
+            cards_by_value[card.value].append(card)
+
+        # Count available quantities for each value
+        counts = Counter(card.value for card in money_cards)
+        unique_values = sorted(counts.keys())
+
+        # Generate all possible counts for each value
+        # e.g. for {10: 2, 50: 1} -> (0..2 tens) x (0..1 fifties)
+        ranges = [range(counts[val] + 1) for val in unique_values]
+        
+        combinations = []
+        for quantities in itertools.product(*ranges):
+            # Skip empty set if that's not a valid action (assuming at least 1 card or specific 0 card needed)
+            # But "0 cards" might be valid bluff? Validating against "lowest level actions" usually implies explicit choices.
+            # Let's include empty set for now, filtering can happen safely later if needed.
+            # Actually, usually you must bid SOMETHING or Pass. For Cow Trade, you make an offer.
+            # If the offer is empty, it's 0 value.
+            if sum(quantities) == 0:
+                combinations.append([])
+                continue
+
+            current_combo = []
+            valid_combo = True
+            for i, qty in enumerate(quantities):
+                if qty > 0:
+                    val = unique_values[i]
+                    # verify we have enough cards (we should, by definition of ranges)
+                    if len(cards_by_value[val]) < qty:
+                        # thoroughness check, should not happen
+                        valid_combo = False
+                        break
+                    # Take the first 'qty' cards of this value
+                    current_combo.extend(cards_by_value[val][:qty])
             
-        return reachable
+            if valid_combo:
+                combinations.append(current_combo)
+
+        return combinations
 
     def is_game_over(self) -> bool:
         """Check if the game is over.

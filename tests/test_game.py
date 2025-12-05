@@ -5,6 +5,11 @@ Run with: pytest tests/test_game.py -v
 Coverage: pytest tests/test_game.py --cov=gameengine --cov-report=html
 """
 import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from gameengine import Game, AnimalType, GamePhase, ActionType
 from gameengine.Animal import AnimalCard
 from gameengine.Money import MoneyDeck, MoneyCard
