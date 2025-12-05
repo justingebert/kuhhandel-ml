@@ -90,15 +90,24 @@ class GameController:
                     continue
 
                 agent = self.agents[bidder_id]
-                # We construct a special 'valid_actions' for the agent in this context
-                # Ideally Game would provide this, but for now we infer
-                valid_actions = [ActionType.BID, ActionType.PASS]
-                
+                # Get valid actions from game logic
+                valid_actions = self.game.get_valid_actions(bidder_id)
+                # If no valid actions (e.g. can't bid higher), get_valid_actions returns [Pass] usually.
+                # If truly empty, force pass?
+                if not valid_actions:
+                    # Logic safety: if no actions, pass.
+                    from gameengine.actions import Actions # Wieso import hier??
+                    valid_actions = [Actions.pass_action()]
+
                 action = agent.get_action(self.game, valid_actions)
                 
                 if action.type == ActionType.BID:
-                    if action.amount >= min_bid:
-                        success = self.game.place_bid(bidder_id, action.amount)
+                    # Calculate amount from cards
+                    from gameengine.Money import calculate_total_value # Wieso import hier??
+                    bid_amount = calculate_total_value(action.money_cards)
+                    
+                    if bid_amount >= min_bid:
+                        success = self.game.place_bid(bidder_id, bid_amount)
                         if success:
                             highest_bid_changed = True
                             # Notify others? (Optional)

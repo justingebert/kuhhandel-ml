@@ -35,80 +35,103 @@ def print_game_state(game: Game):
 class RandomAgent(Agent):
     """A simple agent that makes random valid moves."""
 
-    def get_action(self, game: Game, valid_actions: List[ActionType]) -> GameAction:
-        from gameengine.actions import Actions
+    def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
+        from gameengine.actions import ActionType
         
         player = game.players[self.player_id]
         
+        # Helper to group actions by type
+        actions_by_type = {}
+        for action in valid_actions:
+            if action.type not in actions_by_type:
+                actions_by_type[action.type] = []
+            actions_by_type[action.type].append(action)
+
         # 1. Auction Bidding
-        if ActionType.BID in valid_actions:
-            min_bid = game.auction_high_bid + 10
-            # Bid if rich enough and random chance
-            if player.get_total_money() >= min_bid and random.random() < 0.5:
-                return Actions.bid(amount=min_bid)
-            return Actions.pass_action()
+        # If we can bid, should we?
+        if ActionType.BID in actions_by_type:
+            # Strategies:
+            bids = actions_by_type[ActionType.BID]
+            # Find minimum bid
+            # Bids are granular now, we valid_actions contains all valid bids with cards.
+            # We just need to pick one.
+            # Sort by amount (value of money cards)
+            # Since BidAction has .money_cards, we need to calculate total.
+            from gameengine.Money import calculate_total_value
+            
+            # Group bids by value to find the cheapest ones
+            # (There might be multiple ways to pay the same amount, just pick one)
+            bids.sort(key=lambda a: calculate_total_value(a.money_cards))
+            min_bid_action = bids[0]
+            min_bid_amount = calculate_total_value(min_bid_action.money_cards)
+            
+            # Simple logic: 50% chance to bid if we can
+            if random.random() < 0.5:
+                # Prefer the smallest bid (first in sorted list)
+                return min_bid_action
+            
+            # Else try to pass
+            if ActionType.PASS in actions_by_type:
+                return actions_by_type[ActionType.PASS][0]
 
         # 2. Auctioneer Decision
-        if ActionType.BUY_AS_AUCTIONEER in valid_actions:
-            # Buy if cheap
-            if game.auction_high_bid < 50 and player.get_total_money() >= game.auction_high_bid:
-                return Actions.buy_as_auctioneer()
-            return Actions.pass_action()
+        if ActionType.BUY_AS_AUCTIONEER in actions_by_type:
+            buy_action = actions_by_type[ActionType.BUY_AS_AUCTIONEER][0]
+            # Buy if cheap (e.g. < 50) and we have money (implicit if action is valid? No, action valid doesn't mean smart)
+            # Actually buy_action is only valid if we CAN pay.
+            if game.auction_high_bid < 50:
+                 return buy_action
+            # Else pass (sell)
+            if ActionType.PASS in actions_by_type:
+                return actions_by_type[ActionType.PASS][0]
 
-        # 3. Cow Trade Response
-        if ActionType.COUNTER_OFFER in valid_actions:
-            # Counter if rich enough
-            offer_value = sum(c.value for c in game.trade_offer)
-            if player.get_total_money() > offer_value + 10 and random.random() < 0.5:
-                # Pick random cards
-                num_cards = random.randint(1, min(4, len(player.money)))
-                return Actions.counter_offer(money_cards=player.money[:num_cards])
-            return Actions.accept_offer()
+        # 3. Cow Trade Response (Counter vs Accept)
+        if ActionType.COUNTER_OFFER in actions_by_type:
+            # 50% chance to counter implies we prefer counter over accept
+            if random.random() < 0.5:
+                # Pick a random counter offer (includes bluffs!)
+                return random.choice(actions_by_type[ActionType.COUNTER_OFFER])
+            # Else accept
+            if ActionType.ACCEPT_OFFER in actions_by_type:
+                 return actions_by_type[ActionType.ACCEPT_OFFER][0]
 
-        # 4. Main Turn Decision
-        if ActionType.START_AUCTION in valid_actions and ActionType.START_COW_TRADE in valid_actions:
-             # Prefer auction unless deck empty
-             if not game.animal_deck:
-                 action_type = ActionType.START_COW_TRADE
-             else:
-                 action_type = random.choice([ActionType.START_AUCTION, ActionType.START_COW_TRADE])
-        elif ActionType.START_AUCTION in valid_actions:
-            action_type = ActionType.START_AUCTION
-        elif ActionType.START_COW_TRADE in valid_actions:
-            action_type = ActionType.START_COW_TRADE
-        else:
-            return Actions.pass_action()
-
-        if action_type == ActionType.START_AUCTION:
-            return Actions.start_auction()
-        
-        if action_type == ActionType.START_COW_TRADE:
-            # Find a valid trade
-            for animal_type in AnimalType.get_all_types():
-                if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
-                    for target_id, target in enumerate(game.players):
-                        if target_id != self.player_id and target.has_animal_type(animal_type):
-                            # Can trade even with 0 money (bluffing)
-                            if len(player.money) > 0:
-                                num_cards = random.randint(1, min(4, len(player.money)))
-                                money_cards = player.money[:num_cards]
-                            else:
-                                money_cards = []
-                            
-                            return Actions.start_cow_trade(
-                                target_id=target_id,
-                                animal_type=animal_type,
-                                money_cards=money_cards
-                            )
+        # 4. Main Turn (Start Auction vs Trade)
+        possible_types = []
+        if ActionType.START_AUCTION in actions_by_type:
+            possible_types.append(ActionType.START_AUCTION)
+        if ActionType.START_COW_TRADE in actions_by_type:
+            possible_types.append(ActionType.START_COW_TRADE)
             
-            return Actions.pass_action()
+        if not possible_types:
+            # Should be pass if nothing else?
+             if ActionType.PASS in actions_by_type:
+                return actions_by_type[ActionType.PASS][0]
+             # Fallback
+             return valid_actions[0]
 
-        return Actions.pass_action()
+        # Decision
+        chosen_type = None
+        if ActionType.START_AUCTION in possible_types and ActionType.START_COW_TRADE in possible_types:
+            if not game.animal_deck:
+                chosen_type = ActionType.START_COW_TRADE
+            else:
+                chosen_type = random.choice(possible_types)
+        elif possible_types:
+            chosen_type = possible_types[0]
+            
+        if chosen_type:
+            # Pick one action of that type
+            # For auction, usually only one StartAuctionAction
+            # For trade, MANY options.
+            options = actions_by_type[chosen_type]
+            return random.choice(options)
+
+        return valid_actions[0]
 
 
-def full_game_simulation(seed=999, players=5):
+def full_game_simulation(seed=999, players=3):
     """Simulate a full game using GameController."""
-    print("\n\n🎲 FULL GAME SIMULATION (Controller)")
+    print("\n\nFULL GAME SIMULATION (Controller)")
     print(f"Running a complete game with RandomAgents (seed={seed})...\n")
 
     game = Game(num_players=players, seed=seed)

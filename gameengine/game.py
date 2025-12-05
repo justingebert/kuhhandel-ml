@@ -156,12 +156,16 @@ class Game:
                 # Valid bid > current high bid
                 # Step size 10 is standard convention
                 start_bid = self.auction_high_bid + 10
-                max_bid = player.get_total_money()
                 
-                # Even if you can't outbid, you can't bid.
-                # If start_bid > max_bid, no bid actions added.
-                for amount in range(start_bid, max_bid + 1, 10):
-                    actions.append(game_actions.Actions.bid(amount))
+                # Check ALL reachable sums.
+                # _generate_money_combinations returns lists of cards.
+                money_combinations = self._generate_money_combinations(player.money)
+                
+                for combo in money_combinations:
+                    amount = calculate_total_value(combo)
+                    # Must be at least start_bid
+                    if amount >= start_bid and amount % 10 == 0:
+                        actions.append(game_actions.Actions.bid(money_cards=combo))
 
         elif self.phase == GamePhase.COW_TRADE:
             if player_id == self.trade_target and not self.trade_counter_offer:
@@ -329,9 +333,9 @@ class Game:
             return reachable[amount]
         
         # Fallback: Overpay
-        bigger = [x for x in new if x >= amount]
+        bigger = [x for x in reachable if x >= amount]
         if bigger:
-            return new[min(bigger)]
+            return reachable[min(bigger)]
         
         # return [] # BrokeBoy
         raise ValueError("No payment possible")
