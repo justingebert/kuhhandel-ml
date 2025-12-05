@@ -15,7 +15,7 @@ class GameActionBase:
 
 @dataclass(frozen=True)
 class BidAction(GameActionBase):
-    amount: int
+    money_cards: List[MoneyCard]
     type: ActionType = field(default=ActionType.BID, init=False)
 
 
@@ -69,9 +69,9 @@ class Actions:
     """Factory class for creating action objects with a clean API."""
     
     @staticmethod
-    def bid(amount: int) -> BidAction:
+    def bid(money_cards: List[MoneyCard]) -> BidAction:
         """Create a bid action."""
-        return BidAction(amount=amount)
+        return BidAction(money_cards=money_cards)
     
     @staticmethod
     def pass_action() -> PassAction:

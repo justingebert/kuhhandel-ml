@@ -16,7 +16,7 @@ class GamePhase(Enum):
     GAME_OVER = "game_over"
 
 
-class ActionType(Enum):
+class ActionType(Enum): # Nach actions.py verschiebnen, dann muss auch nicht lokal importiert werden.
     """Types of actions players can take."""
     START_AUCTION = "start_auction"
     START_COW_TRADE = "start_cow_trade"
@@ -95,8 +95,11 @@ class Game:
         """Get the player whose turn it is."""
         return self.players[self.current_player_idx]
 
-    def get_valid_actions(self, player_id: Optional[int] = None) -> List[ActionType]:
+    def get_valid_actions(self, player_id: Optional[int] = None) -> List[Any]:
         """Get valid actions for the current game state."""
+        # Local import to avoid circular dependency
+        from . import actions as game_actions
+        
         if player_id is None:
             player_id = self.current_player_idx
 
@@ -108,9 +111,20 @@ class Game:
             deck_empty = len(self.animal_deck) == 0
 
             if not deck_empty:
-                actions.append(ActionType.START_AUCTION)
+                actions.append(game_actions.Actions.start_auction())
 
             # Check if cow trade is possible
+            
+            # Generate valid money offers
+            # For trades: all unique values + bluffing options
+            # First, separate 0s from non-0s
+            zeros = [c for c in player.money if c.value == 0]
+            non_zeros = [c for c in player.money if c.value > 0]
+            
+            # Map of amount -> combination (using non-zeros)
+            # Use the "strict" logic (one combo per amount)
+            reachable_combos = self._generate_unique_money_combinations_map(non_zeros)
+
             for animal_type in AnimalType.get_all_types():
                 if player.has_animal_type(animal_type):
                     # Can't trade if current player has complete set
@@ -122,33 +136,83 @@ class Game:
                             if other_player.has_animal_type(animal_type):
                                 # Can only trade if other player doesn't have complete set
                                 if not other_player.has_complete_set(animal_type):
-                                    actions.append(ActionType.START_COW_TRADE)
-                                    break
-                    if ActionType.START_COW_TRADE in actions:
-                        break
+                                    # Create actions for each valid money combination
+                                    # Base variations from reachable amounts
+                                    for amount, base_combo in reachable_combos.items():
+                                        # Base Action (only if we have non-zeros or if base is allowed? 
+                                        # Usually 0 offer is valid (bluff), but if base_combo is empty, it means value 0.
+                                        # If base_combo is empty and we have NO zeros, it's an empty offer (valid?).
+                                        # Let's assume empty offer is 0 value and valid.
+                                        
+                                        # Add Base Action
+                                        actions.append(game_actions.Actions.start_cow_trade(
+                                            target_id=other_player.player_id,
+                                            animal_type=animal_type,
+                                            money_cards=base_combo
+                                        ))
+                                        
+                                        # Bluffing variations: Add N zeros
+                                        for z_count in range(1, len(zeros) + 1):
+                                            bluff_combo = base_combo + zeros[:z_count]
+                                            actions.append(game_actions.Actions.start_cow_trade(
+                                                target_id=other_player.player_id,
+                                                animal_type=animal_type,
+                                                money_cards=bluff_combo
+                                            ))
 
             # If deck is empty and no actions available, but game isn't over,
-            # the player must pass (this shouldn't happen if logic is correct)
+            # the player must pass (should usually not happen if logic is correct)
             if deck_empty and not actions and not self.is_game_over():
-                # This means player has only complete sets, skip to next player
                 pass
 
         elif self.phase == GamePhase.AUCTION:
             if player_id == self.current_player_idx:
-                # Auctioneer can always pass, and buy if there's a high bid
-                actions.append(ActionType.PASS)#TODO maybe rename to SELL
+                # Auctioneer can always pass (sell to highest bidder)
+                actions.append(game_actions.Actions.pass_action())
+                
                 if self.auction_high_bidder is not None:
-                    actions.append(ActionType.BUY_AS_AUCTIONEER)
+                    actions.append(game_actions.Actions.buy_as_auctioneer())
             else:
                 # Other players can bid
-                actions.append(ActionType.BID)
-                actions.append(ActionType.PASS)
+                actions.append(game_actions.Actions.pass_action())
+                
+                # Generate valid bids
+                # Valid bid > current high bid
+                # Step size 10 is standard convention
+                # Bids MUST use specific cards now.
+                # Combinations map creates EXACT sums.
+                # So we can only bid what we can exactly pay.
+                # Using ALL money (including 0s? 0s don't help pay bid).
+                
+                reachable_combos = self._generate_unique_money_combinations_map(player.money)
+                
+                start_bid = self.auction_high_bid + 10
+                max_bid = calculate_total_value(player.money)
+                
+                for amount in range(start_bid, max_bid + 1, 10):
+                    if amount in reachable_combos:
+                        actions.append(game_actions.Actions.bid(reachable_combos[amount]))
 
         elif self.phase == GamePhase.COW_TRADE:
             if player_id == self.trade_target and not self.trade_counter_offer:
                 # Target can accept or counter
-                actions.append(ActionType.ACCEPT_OFFER)
-                actions.append(ActionType.COUNTER_OFFER)
+                actions.append(game_actions.Actions.accept_offer())
+                
+                # Counter offer options
+                # Same logic as trade offer: unique sums + bluffs
+                zeros = [c for c in player.money if c.value == 0]
+                non_zeros = [c for c in player.money if c.value > 0]
+                reachable_combos = self._generate_unique_money_combinations_map(non_zeros)
+                if 0 not in reachable_combos:
+                    reachable_combos[0] = []
+                
+                for amount, base_combo in reachable_combos.items():
+                    # Base
+                    actions.append(game_actions.Actions.counter_offer(money_cards=base_combo))
+                    # Bluffs
+                    for z_count in range(1, len(zeros) + 1):
+                        bluff_combo = base_combo + zeros[:z_count]
+                        actions.append(game_actions.Actions.counter_offer(money_cards=bluff_combo))
 
         return actions
 
@@ -288,8 +352,8 @@ class Game:
 
     def _select_payment_cards(self, money_cards: List[MoneyCard], amount: int) -> List[MoneyCard]:
         """Select money cards to pay a specific amount (or more if exact not possible)."""
-        # Sort cards by value
-        sorted_cards = sorted(money_cards, key=lambda c: c.value)
+        # Sort cards by value (Reversed weil immer mit größtem schein bezahlt werden soll)
+        sorted_cards = sorted(money_cards, key=lambda c: c.value, reverse=True)
 
         # Zahlungskombinationen
         reachable = {0: []}
@@ -496,6 +560,27 @@ class Game:
                 # Double-check if game is now over after skipping
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
+
+    def _generate_unique_money_combinations_map(self, money_cards: List[MoneyCard]) -> Dict[int, List[MoneyCard]]:
+        """Generate a map of reachable sums to the specific cards that form them.
+        
+        Uses logic similar to _select_payment_cards to ensure unique combinations for each sum,
+        prioritizing larger cards to match user preference.
+        """
+        # Sort cards by value (Reversed weil immer mit größtem schein bezahlt werden soll)
+        sorted_cards = sorted(money_cards, key=lambda c: c.value, reverse=True)
+
+        # Zahlungskombinationen
+        reachable = {0: []}
+        for x in sorted_cards:
+            new = {}
+            for s, combo in reachable.items():
+                ns = s + x.value
+                if ns not in reachable and ns not in new:
+                    new[ns] = combo + [x]
+            reachable.update(new)
+            
+        return reachable
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
