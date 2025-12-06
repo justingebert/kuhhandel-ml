@@ -15,6 +15,16 @@ class GamePhase(Enum):
     COW_TRADE = "cow_trade"
     GAME_OVER = "game_over"
 
+# TODO maybe extend to this
+# class GamePhase(Enum):
+#     TURN_CHOICE = 0
+#     AUCTION_BIDDING = 1
+#     AUCTIONEER_DECISION = 2
+#     COW_CHOOSE_OPPONENT = 3
+#     COW_CHOOSE_ANIMAL = 4
+#     COW_OFFER = 5
+#     COW_RESPONSE = 6
+
 
 class ActionType(Enum):
     """Types of actions players can take."""
