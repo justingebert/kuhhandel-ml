@@ -124,7 +124,15 @@ class KuhhandelEnv(gym.Env):
         pass
 
     def _compute_reward(self, terminated: bool) -> float:
-        pass
+        if not terminated:
+            return 0.0
+
+        #end scores since the game is terminated
+        scores = self.game.get_scores()
+        if scores[self.rl_agent_id] == max(scores.values()):
+            return 1.0
+        return 0.0
+
 
     def _get_observation(self) -> dict:
 
