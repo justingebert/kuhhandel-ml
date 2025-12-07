@@ -82,12 +82,12 @@ class KuhhandelEnv(gym.Env):
 
         return observation, info
 
-    def step(self, action):
+    def step(self, action: int):
         """
         Execute one step in the environment.
 
         Args:
-            action: TODO
+            action: int - Discrete action index chosen by the RL agent.
 
         Returns:
             observation, reward, terminated, truncated, info
@@ -113,15 +113,32 @@ class KuhhandelEnv(gym.Env):
     def _apply_action(self, action_index: int):
         """Map a discrete action index to a concrete game operation"""
         if self.game.phase == GamePhase.PLAYER_TURN:
-            pass
+            if action_index == ACTION_START_AUCTION:
+                pass
+            if action_index == ACTION_START_COW_TRADE:
+                pass
         elif self.game.phase == GamePhase.AUCTION:
-            pass
+            if action_index < ACTION_AUCTION_BID_BASE:
+                pass
         elif self.game.phase == GamePhase.COW_TRADE:
             pass
-        pass
+        else:
+            raise ValueError(f"Invalid game phase: {self.game.phase}")
 
     def _play_until_next_decision(self):
-        pass
+        steps_taken = 0
+        max_steps_per_action = 20  # Safety limit
+
+        while steps_taken < max_steps_per_action:
+            if self.game.is_game_over():
+                break
+
+            self.controller.step()
+            steps_taken += 1
+
+            if self.game.current_player_idx == self.rl_agent_id or self.game.is_game_over():
+                break
+
 
     def _compute_reward(self, terminated: bool) -> float:
         if not terminated:
