@@ -1,7 +1,8 @@
 from .Animal import AnimalCard, AnimalType
 from .Money import MoneyCard, MoneyDeck
 from .Player import Player
-from .game import Game, GamePhase, ActionType
+from .game import Game, GamePhase
+from .actions import ActionType
 
 __all__ = [
     'AnimalCard',

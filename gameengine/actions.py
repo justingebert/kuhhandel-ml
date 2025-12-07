@@ -71,7 +71,7 @@ class Actions:
     @staticmethod
     def bid(amount: int) -> BidAction:
         """Create a bid action."""
-        return BidAction(amount=amount)
+        return BidAction(amount = amount)
     
     @staticmethod
     def pass_action() -> PassAction:

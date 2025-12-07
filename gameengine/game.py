@@ -95,8 +95,11 @@ class Game:
         """Get the player whose turn it is."""
         return self.players[self.current_player_idx]
 
-    def get_valid_actions(self, player_id: Optional[int] = None) -> List[ActionType]:
+    def get_valid_actions(self, player_id: Optional[int] = None) -> List[Any]:
         """Get valid actions for the current game state."""
+        # Local import to avoid circular dependency
+        from . import actions as game_actions
+        
         if player_id is None:
             player_id = self.current_player_idx
 
@@ -108,9 +111,12 @@ class Game:
             deck_empty = len(self.animal_deck) == 0
 
             if not deck_empty:
-                actions.append(ActionType.START_AUCTION)
+                actions.append(game_actions.Actions.start_auction())
 
             # Check if cow trade is possible
+            # Generate all possible money combinations once for the player
+            money_combinations = self._generate_money_combinations(player.money)
+            
             for animal_type in AnimalType.get_all_types():
                 if player.has_animal_type(animal_type):
                     # Can't trade if current player has complete set
@@ -122,33 +128,54 @@ class Game:
                             if other_player.has_animal_type(animal_type):
                                 # Can only trade if other player doesn't have complete set
                                 if not other_player.has_complete_set(animal_type):
-                                    actions.append(ActionType.START_COW_TRADE)
-                                    break
-                    if ActionType.START_COW_TRADE in actions:
-                        break
+                                    # Create an action for each valid money combination
+                                    for combo in money_combinations:
+                                        actions.append(game_actions.Actions.start_cow_trade(
+                                            target_id=other_player.player_id,
+                                            animal_type=animal_type,
+                                            money_cards=combo
+                                        ))
 
             # If deck is empty and no actions available, but game isn't over,
-            # the player must pass (this shouldn't happen if logic is correct)
+            # the player must pass (should usually not happen if logic is correct)
             if deck_empty and not actions and not self.is_game_over():
-                # This means player has only complete sets, skip to next player
                 pass
 
         elif self.phase == GamePhase.AUCTION:
             if player_id == self.current_player_idx:
-                # Auctioneer can always pass, and buy if there's a high bid
-                actions.append(ActionType.PASS)#TODO maybe rename to SELL
+                # Auctioneer can always pass (sell to highest bidder)
+                actions.append(game_actions.Actions.pass_action())
+                
                 if self.auction_high_bidder is not None:
-                    actions.append(ActionType.BUY_AS_AUCTIONEER)
+                    if self.auction_high_bid < self.players[player_id].get_total_money():
+                        actions.append(game_actions.Actions.buy_as_auctioneer())
             else:
                 # Other players can bid
-                actions.append(ActionType.BID)
-                actions.append(ActionType.PASS)
+                actions.append(game_actions.Actions.pass_action())
+                
+                # Generate valid bids
+                # Valid bid > current high bid
+                # Step size 10 is standard convention
+                start_bid = self.auction_high_bid + 10
+
+                total_money = self.players[player_id].get_total_money()
+
+                money_steps_mod10 = range(start_bid%10,total_money%10+1)
+
+                for amount in money_steps_mod10:
+                    actions.append(game_actions.Actions.bid(amount=10*amount))
+
+
 
         elif self.phase == GamePhase.COW_TRADE:
             if player_id == self.trade_target and not self.trade_counter_offer:
                 # Target can accept or counter
-                actions.append(ActionType.ACCEPT_OFFER)
-                actions.append(ActionType.COUNTER_OFFER)
+                actions.append(game_actions.Actions.accept_offer())
+                
+                # Counter offer options
+                money_combinations = self._generate_money_combinations(player.money)
+                for combo in money_combinations:
+                    actions.append(game_actions.Actions.counter_offer(money_cards=combo))
 
         return actions
 
@@ -288,8 +315,8 @@ class Game:
 
     def _select_payment_cards(self, money_cards: List[MoneyCard], amount: int) -> List[MoneyCard]:
         """Select money cards to pay a specific amount (or more if exact not possible)."""
-        # Sort cards by value
-        sorted_cards = sorted(money_cards, key=lambda c: c.value)
+        # Sort cards by value (Reversed weil immer mit größtem schein bezahlt werden soll)
+        sorted_cards = sorted(money_cards, key=lambda c: c.value, reverse=True)
 
         # Zahlungskombinationen
         reachable = {0: []}
@@ -306,9 +333,9 @@ class Game:
             return reachable[amount]
         
         # Fallback: Overpay
-        bigger = [x for x in new if x >= amount]
+        bigger = [x for x in reachable if x >= amount]
         if bigger:
-            return new[min(bigger)]
+            return reachable[min(bigger)]
         
         # return [] # BrokeBoy
         raise ValueError("No payment possible")
@@ -496,6 +523,59 @@ class Game:
                 # Double-check if game is now over after skipping
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
+
+    def _generate_money_combinations(self, money_cards: List[MoneyCard]) -> List[List[MoneyCard]]:
+        """Generate all unique combinations of money cards based on value.
+
+        Returns a list of card lists. For multiple cards of the same value,
+        it uses the specific card instances ensuring validity.
+        """
+        import itertools
+        from collections import Counter
+
+        # Group cards by value to key access
+        cards_by_value = {}
+        for card in money_cards:
+            if card.value not in cards_by_value:
+                cards_by_value[card.value] = []
+            cards_by_value[card.value].append(card)
+
+        # Count available quantities for each value
+        counts = Counter(card.value for card in money_cards)
+        unique_values = sorted(counts.keys())
+
+        # Generate all possible counts for each value
+        # e.g. for {10: 2, 50: 1} -> (0..2 tens) x (0..1 fifties)
+        ranges = [range(counts[val] + 1) for val in unique_values]
+        
+        combinations = []
+        for quantities in itertools.product(*ranges):
+            # Skip empty set if that's not a valid action (assuming at least 1 card or specific 0 card needed)
+            # But "0 cards" might be valid bluff? Validating against "lowest level actions" usually implies explicit choices.
+            # Let's include empty set for now, filtering can happen safely later if needed.
+            # Actually, usually you must bid SOMETHING or Pass. For Cow Trade, you make an offer.
+            # If the offer is empty, it's 0 value.
+            if sum(quantities) == 0:
+                combinations.append([])
+                continue
+
+            current_combo = []
+            valid_combo = True
+            for i, qty in enumerate(quantities):
+                if qty > 0:
+                    val = unique_values[i]
+                    # verify we have enough cards (we should, by definition of ranges)
+                    if len(cards_by_value[val]) < qty:
+                        # thoroughness check, should not happen
+                        valid_combo = False
+                        break
+                    # Take the first 'qty' cards of this value
+                    current_combo.extend(cards_by_value[val][:qty])
+            
+            if valid_combo:
+                combinations.append(current_combo)
+
+        return combinations
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
