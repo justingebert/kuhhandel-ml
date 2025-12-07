@@ -56,6 +56,18 @@ class Player:
         """Get count of a specific animal type."""
         return sum(1 for card in self.animals if card.animal_type == animal_type)
 
+    def get_money_histogram(self, money_values: List[int]) -> Dict[int, int]:
+        """Get count of each money card value.
+
+        Args:
+            money_values: List of money values to count
+
+        Returns:
+            Dictionary mapping money value to count
+        """
+        counts = Counter(card.value for card in self.money)
+        return {value: counts.get(value, 0) for value in money_values}
+
     def has_complete_set(self, animal_type: AnimalType) -> bool:
         """Check if player has all 4 cards of an animal type."""
         return self.get_animal_count(animal_type) == 4
