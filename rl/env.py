@@ -5,7 +5,7 @@ import numpy as np
 from gymnasium.spaces import Dict, Discrete, MultiDiscrete
 
 from gameengine import AnimalType, MoneyDeck
-from gameengine.actions import GameAction
+from gameengine.Money import calculate_total_value
 from gameengine.agent import Agent
 from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
@@ -32,6 +32,7 @@ class KuhhandelEnv(gym.Env):
             ),
 
             # per-player money histogram TODO maybe flatten
+            # also for now the agent now the exact values the opponent have
             "money": MultiDiscrete(
                 np.full((N_PLAYERS, len(MONEY_VALUES)), max_cards_per_value, dtype=np.int64)
             ),
@@ -49,7 +50,7 @@ class KuhhandelEnv(gym.Env):
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
             "trade_offer_value": Discrete(MAX_MONEY + 1),
-            "trade_counter_offer_value": Discrete(MAX_MONEY + 1),
+            "trade_counter_offer_value": Discrete(MAX_MONEY + 1), #this is not kniown inforamtion but will be used for first model - might remvoe later
         })
 
         self.game: Optional[Game] = None
@@ -125,16 +126,46 @@ class KuhhandelEnv(gym.Env):
     def _compute_reward(self, terminated: bool) -> float:
         pass
 
-    def _get_observation(self):
-        pass
+    def _get_observation(self) -> dict:
+
+        animals = np.zeros((N_PLAYERS, N_ANIMALS), dtype=np.int64)
+        for player_idx, player in enumerate(self.game.players):
+            counts = player.get_animal_counts()
+            animals[player_idx, :] = counts.values()
+
+        money = np.zeros((N_PLAYERS, len(MONEY_VALUES)), dtype=np.int64)
+        for player_idx, player in enumerate(self.game.players):
+            histogram = player.get_money_histogram(MONEY_VALUES)
+            money[player_idx, :] = list(histogram.values())
+
+        auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
+        trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
+
+        observation = {
+            "game_phase": self.game.phase.value,
+            "current_player": self.game.current_player_idx,
+            "animals": animals,
+            "money": money,
+            "deck_size": len(self.game.animal_deck),
+            "donkeys_revealed": self.game.donkeys_revealed,
+            "auction_animal_type": auction_animal_type,
+            "auction_high_bid": self.game.auction_high_bid or 0,
+            "trade_initiator": self.game.trade_initiator or N_PLAYERS,
+            "trade_target": self.game.trade_target or N_PLAYERS,
+            "trade_animal_type": trade_animal_type,
+            "trade_offer_value": calculate_total_value(self.game.trade_offer),
+            "trade_counter_offer_value": calculate_total_value(self.game.trade_counter_offer),
+        }
+
+        return observation
 
 
 # ----- GAME CONSTANTS -----
 N_PLAYERS = 3
 N_ANIMALS = len(AnimalType.get_all_types())  # 10
-MONEY_VALUES = [0, 10, 50, 100, 200, 500]
+MONEY_VALUES = sorted(MoneyDeck.INITIAL_DISTRIBUTION.keys())
 
-max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION[v] for v in MONEY_VALUES) + 1
+max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
 
 # offers/bids as multiples of 10 up to MAX_MONEY
 MONEY_STEP = 10
