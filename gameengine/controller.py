@@ -104,7 +104,7 @@ class GameController:
                 if action.type == ActionType.BID:
                     # Calculate amount from cards
                     from gameengine.Money import calculate_total_value # Wieso import hier??
-                    bid_amount = calculate_total_value(action.money_cards)
+                    bid_amount = action.amount
                     
                     if bid_amount >= min_bid:
                         success = self.game.place_bid(bidder_id, bid_amount)

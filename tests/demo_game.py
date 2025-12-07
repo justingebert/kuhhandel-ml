@@ -61,9 +61,9 @@ class RandomAgent(Agent):
             
             # Group bids by value to find the cheapest ones
             # (There might be multiple ways to pay the same amount, just pick one)
-            bids.sort(key=lambda a: calculate_total_value(a.money_cards))
+            bids.sort(key=lambda a: a)#calculate_total_value(a.money_cards))
             min_bid_action = bids[0]
-            min_bid_amount = calculate_total_value(min_bid_action.money_cards)
+            # min_bid_amount = calculate_total_value(min_bid_action.money_cards)
             
             # Simple logic: 50% chance to bid if we can
             if random.random() < 0.5:
