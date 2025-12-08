@@ -112,7 +112,7 @@ class KuhhandelEnv(gym.Env):
     # here we will decode the
     def _apply_action(self, action_index: int):
         """Map a discrete action index to a concrete game operation"""
-        if self.game.phase == GamePhase.PLAYER_TURN:
+        if self.game.phase == GamePhase.TURN_CHOICE:
             if action_index == ACTION_START_AUCTION:
                 pass
             if action_index == ACTION_START_COW_TRADE:
@@ -121,6 +121,13 @@ class KuhhandelEnv(gym.Env):
             if action_index < ACTION_AUCTION_BID_BASE:
                 pass
         elif self.game.phase == GamePhase.COW_TRADE:
+            pass
+            
+        elif self.game.phase == GamePhase.COW_CHOOSE_OPPONENT:
+            pass
+        elif self.game.phase == GamePhase.COW_CHOOSE_ANIMAL:
+            pass
+        elif self.game.phase == GamePhase.COW_OFFER:
             pass
         else:
             raise ValueError(f"Invalid game phase: {self.game.phase}")

@@ -32,7 +32,7 @@ class GameController:
 
     def step(self):
         """Execute a single step of the game logic."""
-        if self.game.phase == GamePhase.PLAYER_TURN:
+        if self.game.phase == GamePhase.TURN_CHOICE:
             self._handle_player_turn()
         elif self.game.phase == GamePhase.AUCTION:
             self._handle_auction_phase()
@@ -72,6 +72,8 @@ class GameController:
 
         auctioneer_id = self.game.current_player_idx
         highest_bid_changed = True
+
+        self.phase = GamePhase.AUCTION_BIDDING
         
         # 1. Bidding Loop
         while highest_bid_changed:
@@ -112,6 +114,7 @@ class GameController:
                             highest_bid_changed = True
                             # Notify others? (Optional)
 
+        self.phase = GamePhase.AUCTIONEER_DECISION
         # 2. Auctioneer Decision
         auctioneer_agent = self.agents[auctioneer_id]
         valid_actions = self.game.get_valid_actions(auctioneer_id) # PASS or BUY_AS_AUCTIONEER

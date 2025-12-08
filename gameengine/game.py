@@ -7,23 +7,31 @@ from .Money import MoneyCard, MoneyDeck, calculate_total_value
 from .Player import Player
 
 
-class GamePhase(Enum):
-    """Different phases of the game."""
-    SETUP = "setup"
-    PLAYER_TURN = "player_turn"
-    AUCTION = "auction"
-    COW_TRADE = "cow_trade"
-    GAME_OVER = "game_over"
+# class GamePhase(Enum):
+#     """Different phases of the game."""
+#     SETUP = "setup"
+# #    TURN_CHOICE = "player_turn"
+#     AUCTION = "auction"
+#     COW_TRADE = "cow_trade"
+#     GAME_OVER = "game_over"
 
 # TODO maybe extend to this
-# class GamePhase(Enum):
-#     TURN_CHOICE = 0
-#     AUCTION_BIDDING = 1
-#     AUCTIONEER_DECISION = 2
-#     COW_CHOOSE_OPPONENT = 3
-#     COW_CHOOSE_ANIMAL = 4
-#     COW_OFFER = 5
-#     COW_RESPONSE = 6
+class GamePhase(Enum):
+    SETUP = "setup" # brauchen wir noch?
+
+    TURN_CHOICE = 0  # nur umbenannt, von PLAYER_TURN
+
+    AUCTION = "auction" # brauchen wir in der step (könnte man direkt mit auction_bidding ersetzen)
+    AUCTION_BIDDING = 1 # in controller.py eingebaut
+    AUCTIONEER_DECISION = 2 # in controller.py eingebaut
+
+    COW_TRADE = "cow_trade" # siehe auction
+    COW_CHOOSE_OPPONENT = 3 
+    COW_CHOOSE_ANIMAL = 4
+    COW_OFFER = 5
+    COW_RESPONSE = 6
+    
+    GAME_OVER = "game_over"
 
 
 class ActionType(Enum):
@@ -98,7 +106,7 @@ class Game:
             starting_money = self.money_deck.get_starting_money()
             player.add_money(starting_money)
 
-        self.phase = GamePhase.PLAYER_TURN
+        self.phase = GamePhase.TURN_CHOICE
         self.current_player_idx = 0
 
     def get_current_player(self) -> Player:
@@ -116,7 +124,7 @@ class Game:
         player = self.players[player_id]
         actions = []
 
-        if self.phase == GamePhase.PLAYER_TURN:
+        if self.phase == GamePhase.TURN_CHOICE:
             # When deck is empty, cow trades are MANDATORY if incomplete sets exist
             deck_empty = len(self.animal_deck) == 0
 
@@ -358,10 +366,27 @@ class Game:
         self.auction_high_bid = 0
         self._next_turn()
 
+    def check_cow_trade_opponent(self, initiator_id: int , target_id: int) -> bool:
+        """Check if a cow trade is possible between two players."""
+        if initiator_id == target_id:
+            return False
+        self.game.phase = GamePhase.COW_CHOOSE_ANIMAL
+        
+        
+
+    def check_cow_trade_animal(self, initiator_id: int, target_id: int, animal_type: AnimalType) -> bool:
+        """Check if a cow trade is possible for the given animal type."""
+        if initiator_id == target_id:
+            return False
+        if Player.has_animal_type(self.players[initiator_id], animal_type) or Player.has_animal_type(self.players[target_id], animal_type) is False:
+            return False
+        self.game.phase = GamePhase.COW_OFFER
+        
+
     def start_cow_trade(self, target_player_id: int, animal_type: AnimalType,
                        offer_cards: List[MoneyCard]) -> bool:
         """Start a cow trade with another player."""
-        if self.phase != GamePhase.PLAYER_TURN:
+        if self.phase != GamePhase.TURN_CHOICE:
             return False
 
         initiator = self.get_current_player()
@@ -514,7 +539,7 @@ class Game:
         if self.is_game_over():
             self.phase = GamePhase.GAME_OVER
         else:
-            self.phase = GamePhase.PLAYER_TURN
+            self.phase = GamePhase.TURN_CHOICE
 
             # If deck is empty, automatically skip players with no valid actions
             # (those who only have complete sets)

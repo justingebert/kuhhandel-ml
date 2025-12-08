@@ -166,7 +166,7 @@ class TestGameInitialization:
         """Test that setup initializes game correctly."""
         assert len(game.players) == 3
         assert len(game.animal_deck) == 40  # 10 types x 4 cards
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.TURN_CHOICE
 
         # Check starting money
         for player in game.players:
@@ -258,7 +258,7 @@ class TestAuction:
         game.auctioneer_passes()
 
         # Auctioneer gets animal for free
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.TURN_CHOICE
         assert animal in auctioneer.animals
 
     def test_auctioneer_passes_with_bids(self, game):
@@ -272,7 +272,7 @@ class TestAuction:
 
         # High bidder gets animal
         assert len(high_bidder.animals) == 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.TURN_CHOICE
 
     def test_auctioneer_buys(self, game):
         """Test auctioneer buying the animal."""
@@ -337,7 +337,7 @@ class TestTrade:
 
         # Initiator should get the animal
         assert len(game.players[0].animals) == initial_p0_animals + 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.TURN_CHOICE
 
     def test_counter_offer_win(self, game_with_trades):
         """Test counter offer that wins."""
@@ -355,7 +355,7 @@ class TestTrade:
 
         # Target wins (higher counter)
         assert len(game.players[1].animals) == initial_p1_animals + 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.TURN_CHOICE
 
     def test_counter_offer_lose(self, game_with_trades):
         """Test counter offer that loses."""
