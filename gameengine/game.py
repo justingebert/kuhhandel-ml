@@ -481,59 +481,6 @@ class Game:
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
 
-    def _generate_money_combinations(self, money_cards: List[MoneyCard]) -> List[List[MoneyCard]]:
-        """Generate all unique combinations of money cards based on value.
-
-        Returns a list of card lists. For multiple cards of the same value,
-        it uses the specific card instances ensuring validity.
-        """
-        import itertools
-        from collections import Counter
-
-        # Group cards by value to key access
-        cards_by_value = {}
-        for card in money_cards:
-            if card.value not in cards_by_value:
-                cards_by_value[card.value] = []
-            cards_by_value[card.value].append(card)
-
-        # Count available quantities for each value
-        counts = Counter(card.value for card in money_cards)
-        unique_values = sorted(counts.keys())
-
-        # Generate all possible counts for each value
-        # e.g. for {10: 2, 50: 1} -> (0..2 tens) x (0..1 fifties)
-        ranges = [range(counts[val] + 1) for val in unique_values]
-        
-        combinations = []
-        for quantities in itertools.product(*ranges):
-            # Skip empty set if that's not a valid action (assuming at least 1 card or specific 0 card needed)
-            # But "0 cards" might be valid bluff? Validating against "lowest level actions" usually implies explicit choices.
-            # Let's include empty set for now, filtering can happen safely later if needed.
-            # Actually, usually you must bid SOMETHING or Pass. For Cow Trade, you make an offer.
-            # If the offer is empty, it's 0 value.
-            if sum(quantities) == 0:
-                combinations.append([])
-                continue
-
-            current_combo = []
-            valid_combo = True
-            for i, qty in enumerate(quantities):
-                if qty > 0:
-                    val = unique_values[i]
-                    # verify we have enough cards (we should, by definition of ranges)
-                    if len(cards_by_value[val]) < qty:
-                        # thoroughness check, should not happen
-                        valid_combo = False
-                        break
-                    # Take the first 'qty' cards of this value
-                    current_combo.extend(cards_by_value[val][:qty])
-            
-            if valid_combo:
-                combinations.append(current_combo)
-
-        return combinations
-
     def is_game_over(self) -> bool:
         """Check if the game is over.
 
