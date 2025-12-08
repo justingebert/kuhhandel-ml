@@ -2,8 +2,8 @@ from typing import Optional, List
 
 import gymnasium
 
-from gameengine import Game, ActionType
-from gameengine.actions import GameAction
+from gameengine import Game
+from gameengine.actions import GameAction, ActionType
 from gameengine.agent import Agent
 from rl.env import KuhhandelEnv
 
