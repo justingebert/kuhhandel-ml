@@ -179,3 +179,7 @@ cython_debug/
 .DS_Store
 
 .mdfiles/
+
+.logs/
+
+.models/
