@@ -23,10 +23,10 @@ class RLAgent(Agent):
     def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
         """Convert stored integer action to GameAction based on current game phase."""
         action_idx = self.last_action_int
-        decoded_action = self.decode_action(action_idx)
+        decoded_action = self.decode_action(action_idx, game)
         return decoded_action
         
-    def decode_action(self, action_idx: int) -> GameAction:
+    def decode_action(self, action_idx: int, game: Game) -> GameAction:
         """Decode integer action index to GameAction."""
         # Import action constants from env
         from rl.env import (

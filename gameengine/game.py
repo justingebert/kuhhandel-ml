@@ -286,7 +286,7 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
-            self._end_auction()
+            self.end_auction()
             return True
 
         auctioneer = self.get_current_player()
@@ -301,7 +301,7 @@ class Game:
                 "paid": self.auction_high_bid,
                 "to": high_bidder.player_id
             })
-            self._end_auction()
+            self.end_auction()
             return True
 
         return False
@@ -314,7 +314,7 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
-            self._end_auction()
+            self.end_auction()
             return True
 
         auctioneer = self.get_current_player()
@@ -329,7 +329,7 @@ class Game:
                 "paid": self.auction_high_bid,
                 "to": auctioneer.player_id
             })
-            self._end_auction()
+            self.end_auction()
             return True
 
         return False
