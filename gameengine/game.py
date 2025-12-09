@@ -3,38 +3,25 @@ from typing import List, Dict, Optional, Any
 from enum import Enum
 
 from .Animal import AnimalCard, AnimalType
-from .Money import MoneyCard, MoneyDeck, calculate_total_value
+from .Money import MoneyCard, MoneyDeck
 from .Player import Player
+from .actions import GameAction, Actions
 
 
 class GamePhase(Enum):
-    """Different phases of the game."""
-    SETUP = "setup"
-    PLAYER_TURN = "player_turn"
-    AUCTION = "auction"
-    COW_TRADE = "cow_trade"
+    SETUP = "setup" # brauchen wir noch?
+
+    PLAYER_TURN_CHOICE = 0  # nur umbenannt, von PLAYER_TURN
+
+    AUCTION_BIDDING = 1
+    AUCTION_BIDDING_FLY = 1 # in controller.py eingebaut
+    AUCTIONEER_DECISION = 2 # in controller.py eingebaut
+
+    COW_TRADE_CHOOSE_ANIMAL = 3
+    COW_TRADE_OFFER = 4
+    COW_TRADE_RESPONSE = 5
+    
     GAME_OVER = "game_over"
-
-# TODO maybe extend to this
-# class GamePhase(Enum):
-#     TURN_CHOICE = 0
-#     AUCTION_BIDDING = 1
-#     AUCTIONEER_DECISION = 2
-#     COW_CHOOSE_OPPONENT = 3
-#     COW_CHOOSE_ANIMAL = 4
-#     COW_OFFER = 5
-#     COW_RESPONSE = 6
-
-
-class ActionType(Enum):
-    """Types of actions players can take."""
-    START_AUCTION = "start_auction"
-    START_COW_TRADE = "start_cow_trade"
-    BID = "bid"
-    PASS = "pass"
-    BUY_AS_AUCTIONEER = "buy_as_auctioneer"
-    ACCEPT_OFFER = "accept_offer"
-    COUNTER_OFFER = "counter_offer"
 
 
 class Game:
@@ -69,8 +56,8 @@ class Game:
         self.trade_initiator: Optional[int] = None
         self.trade_target: Optional[int] = None
         self.trade_animal_type: Optional[AnimalType] = None
-        self.trade_offer: List[MoneyCard] = []
-        self.trade_counter_offer: List[MoneyCard] = []
+        self.trade_offer: int = 0
+        self.trade_counter_offer: int = 0
 
         # Donkey counter for additional money distribution
         self.donkeys_revealed = 0
@@ -98,71 +85,72 @@ class Game:
             starting_money = self.money_deck.get_starting_money()
             player.add_money(starting_money)
 
-        self.phase = GamePhase.PLAYER_TURN
+        self.phase = GamePhase.PLAYER_TURN_CHOICE
         self.current_player_idx = 0
 
     def get_current_player(self) -> Player:
         """Get the player whose turn it is."""
         return self.players[self.current_player_idx]
 
-    def get_valid_actions(self, player_id: Optional[int] = None) -> List[Any]:
+    def get_valid_actions(self, player_id: Optional[int] = None) -> List[GameAction]:
         """Get valid actions for the current game state."""
-        # Local import to avoid circular dependency
-        from . import actions as game_actions
-        
+
+
         if player_id is None:
             player_id = self.current_player_idx
 
         player = self.players[player_id]
         actions = []
 
-        if self.phase == GamePhase.PLAYER_TURN:
+        if self.phase == GamePhase.PLAYER_TURN_CHOICE:
             # When deck is empty, cow trades are MANDATORY if incomplete sets exist
             deck_empty = len(self.animal_deck) == 0
 
             if not deck_empty:
-                actions.append(game_actions.Actions.start_auction())
+                actions.append(Actions.start_auction())
 
-            # Check if cow trade is possible
-            # Generate all possible money combinations once for the player
-            money_combinations = self._generate_money_combinations(player.money)
-            
+            # Check if cow trade is possible - player can choose to start a cow trade
+            # by selecting an opponent (if any valid targets exist)
+            can_start_cow_trade = False
             for animal_type in AnimalType.get_all_types():
                 if player.has_animal_type(animal_type):
-                    # Can't trade if current player has complete set
                     if player.has_complete_set(animal_type):
                         continue
-                    # Check if any other player has the same type
                     for other_player in self.players:
                         if other_player.player_id != player_id:
                             if other_player.has_animal_type(animal_type):
-                                # Can only trade if other player doesn't have complete set
                                 if not other_player.has_complete_set(animal_type):
-                                    # Create an action for each valid money combination
-                                    for combo in money_combinations:
-                                        actions.append(game_actions.Actions.start_cow_trade(
-                                            target_id=other_player.player_id,
-                                            animal_type=animal_type,
-                                            money_cards=combo
-                                        ))
+                                    can_start_cow_trade = True
+                                    break
+                    if can_start_cow_trade:
+                        break
+
+            # Add cow trade opponent choices
+            if can_start_cow_trade:
+                # Get all valid opponents (players who share at least one incomplete animal type)
+                valid_opponents = set()
+                for animal_type in AnimalType.get_all_types():
+                    if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
+                        for other_player in self.players:
+                            if other_player.player_id != player_id:
+                                if other_player.has_animal_type(animal_type):
+                                    if not other_player.has_complete_set(animal_type):
+                                        valid_opponents.add(other_player.player_id)
+
+                for opponent_id in valid_opponents:
+                    actions.append(Actions.cow_trade_choose_opponent(opponent_id))
 
             # If deck is empty and no actions available, but game isn't over,
             # the player must pass (should usually not happen if logic is correct)
             if deck_empty and not actions and not self.is_game_over():
                 pass
 
-        elif self.phase == GamePhase.AUCTION:
-            if player_id == self.current_player_idx:
-                # Auctioneer can always pass (sell to highest bidder)
-                actions.append(game_actions.Actions.pass_action())
-                
-                if self.auction_high_bidder is not None:
-                    if self.auction_high_bid < self.players[player_id].get_total_money():
-                        actions.append(game_actions.Actions.buy_as_auctioneer())
-            else:
-                # Other players can bid
-                actions.append(game_actions.Actions.pass_action())
-                
+        elif self.phase == GamePhase.AUCTION_BIDDING:
+            # Only non-auctioneers can bid during this phase
+            if player_id != self.current_player_idx:
+                # Other players can bid or pass
+                actions.append(Actions.pass_action())
+
                 # Generate valid bids
                 # Valid bid > current high bid
                 # Step size 10 is standard convention
@@ -173,19 +161,45 @@ class Game:
                 money_steps_mod10 = range(start_bid%10,total_money%10+1)
 
                 for amount in money_steps_mod10:
-                    actions.append(game_actions.Actions.bid(amount=10*amount))
+                    actions.append(Actions.bid(amount=10*amount))
 
+        elif self.phase == GamePhase.AUCTIONEER_DECISION:
+            # Only auctioneer (current player) can make decision
+            if player_id == self.current_player_idx:
+                # Auctioneer can always pass (sell to highest bidder)
+                actions.append(Actions.pass_as_auctioneer())
 
+                # Can only buy if there was a bid
+                if self.auction_high_bidder is not None:
+                    # Can only buy if auctioneer can afford to match the highest bid
+                    if player.get_total_money() >= self.auction_high_bid:
+                        actions.append(Actions.buy_as_auctioneer())
 
-        elif self.phase == GamePhase.COW_TRADE:
-            if player_id == self.trade_target and not self.trade_counter_offer:
-                # Target can accept or counter
-                actions.append(game_actions.Actions.accept_offer())
-                
-                # Counter offer options
-                money_combinations = self._generate_money_combinations(player.money)
-                for combo in money_combinations:
-                    actions.append(game_actions.Actions.counter_offer(money_cards=combo))
+        elif self.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL:
+            # Only current player can choose animal type
+            if player_id == self.current_player_idx:
+                target = self.players[self.trade_target]
+                for animal_type in AnimalType.get_all_types():
+                    if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
+                        if target.has_animal_type(animal_type) and not target.has_complete_set(animal_type):
+                            actions.append(Actions.cow_trade_choose_animal(animal_type))
+
+        elif self.phase == GamePhase.COW_TRADE_OFFER:
+            # Only current player can make offer
+            if player_id == self.current_player_idx:
+                # Generate all possible offer amounts based on player's money
+                total_money = player.get_total_money()
+                # Offer can be any amount from 0 to total money (step of 10)
+                for amount in range(0, total_money + 1, 10):
+                    actions.append(Actions.cow_trade_offer(amount))
+
+        elif self.phase == GamePhase.COW_TRADE_RESPONSE:
+            # Only trade target can respond
+            if player_id == self.trade_target:
+                # Target makes counter offer - can be any amount from 0 to their total money
+                total_money = player.get_total_money()
+                for amount in range(0, total_money + 1, 10):
+                    actions.append(Actions.counter_offer(amount=amount))
 
         return actions
 
@@ -196,7 +210,7 @@ class Game:
             return None
 
         self.current_animal = self.animal_deck.pop(0)
-        self.phase = GamePhase.AUCTION
+        self.phase = GamePhase.AUCTION_BIDDING
         self.auction_bids.clear()
         self.auction_high_bidder = None
         self.auction_high_bid = 0
@@ -232,7 +246,7 @@ class Game:
 
     def place_bid(self, player_id: int, bid_amount: int) -> bool:
         """Place a bid during an auction."""
-        if self.phase != GamePhase.AUCTION:
+        if self.phase != GamePhase.AUCTION_BIDDING:
             return False
 
         player = self.players[player_id]
@@ -258,7 +272,7 @@ class Game:
 
     def auctioneer_buys(self) -> bool:
         """Auctioneer decides to buy at the highest bid."""
-        if self.phase != GamePhase.AUCTION:
+        if self.phase != GamePhase.AUCTIONEER_DECISION:
             return False
 
         if self.auction_high_bidder is None:
@@ -286,7 +300,7 @@ class Game:
 
     def auctioneer_passes(self) -> bool:
         """Auctioneer passes, high bidder gets the animal."""
-        if self.phase != GamePhase.AUCTION:
+        if self.phase != GamePhase.AUCTIONEER_DECISION:
             return False
 
         if self.auction_high_bidder is None:
@@ -315,7 +329,7 @@ class Game:
     def _make_payment(self, payer: Player, receiver: Player, amount: int) -> bool:
         """Make a payment from one player to another."""
         # Find cards that sum to at least the amount
-        payment_cards = self._select_payment_cards(payer.money, amount)
+        payment_cards = payer.select_payment_cards(amount)
         if not payment_cards:
             return False
 
@@ -323,32 +337,10 @@ class Game:
         receiver.add_money(payment_cards)
         return True
 
-    def _select_payment_cards(self, money_cards: List[MoneyCard], amount: int) -> List[MoneyCard]:
-        """Select money cards to pay a specific amount (or more if exact not possible)."""
-        # Sort cards by value (Reversed weil immer mit größtem schein bezahlt werden soll)
-        sorted_cards = sorted(money_cards, key=lambda c: c.value, reverse=True)
 
-        # Zahlungskombinationen
-        reachable = {0: []}
-        for x in sorted_cards:
-            new = {}
-            for s, combo in reachable.items():
-                ns = s + x.value
-                if ns not in reachable and ns not in new:
-                    new[ns] = combo + [x]
-            reachable.update(new)
-
-        # exakte Lösung
-        if amount in reachable:
-            return reachable[amount]
-        
-        # Fallback: Overpay
-        bigger = [x for x in reachable if x >= amount]
-        if bigger:
-            return reachable[min(bigger)]
-        
-        # return [] # BrokeBoy
-        raise ValueError("No payment possible")
+    def end_auction_bidding(self):
+        """End the auction bidding phase."""
+        self.phase = GamePhase.AUCTIONEER_DECISION
 
     def _end_auction(self):
         """End the auction and move to next turn."""
@@ -358,115 +350,66 @@ class Game:
         self.auction_high_bid = 0
         self._next_turn()
 
-    def start_cow_trade(self, target_player_id: int, animal_type: AnimalType,
-                       offer_cards: List[MoneyCard]) -> bool:
-        """Start a cow trade with another player."""
-        if self.phase != GamePhase.PLAYER_TURN:
-            return False
+    def choose_cow_trade_opponent(self, target_id: int):
+        self.trade_initiator = self.current_player_idx
+        self.trade_target = target_id
+        self.phase = GamePhase.COW_TRADE_CHOOSE_ANIMAL
 
-        initiator = self.get_current_player()
-        target = self.players[target_player_id]
 
-        # Validate trade is possible
-        if not initiator.has_animal_type(animal_type):
-            return False
-        if not target.has_animal_type(animal_type):
-            return False
-        if target.has_complete_set(animal_type):
-            return False
-
-        # Check initiator has the cards they're offering
-        if not all(card in initiator.money for card in offer_cards):
-            return False
-
-        self.phase = GamePhase.COW_TRADE
-        self.trade_initiator = initiator.player_id
-        self.trade_target = target_player_id
+    def choose_cow_trade_animal(self, animal_type: AnimalType):
         self.trade_animal_type = animal_type
-        self.trade_offer = offer_cards
-        self.trade_counter_offer = []
+        self.phase = GamePhase.COW_TRADE_OFFER
 
-        self._log_action("start_cow_trade", {
-            "initiator": initiator.player_id,
-            "target": target_player_id,
-            "animal": animal_type.display_name,
-            "offer": calculate_total_value(offer_cards)
-        })
+    def choose_cow_trade_offer(self, amount: int):
+        self.trade_offer = amount
+        self.phase = GamePhase.COW_TRADE_RESPONSE
 
-        return True
+    def choose_cow_trade_counter_offer(self, amount: int):
+        self.trade_counter_offer = amount
 
-    def accept_trade_offer(self) -> bool:
-        """Target player accepts the trade offer.
-
-        When target accepts, initiator wins and gets animals based on trade rules:
-        - Trade amount = min(initiator_count, target_count)
-        """
-        if self.phase != GamePhase.COW_TRADE:
-            return False
-
-        target = self.players[self.trade_target]
-        initiator = self.players[self.trade_initiator]
-
-        # Transfer money
-        initiator.remove_money(self.trade_offer)
-        target.add_money(self.trade_offer)
-
-        # Determine trade amount: min of what both players have
-        initiator_count = initiator.get_animal_count(self.trade_animal_type)
-        target_count = target.get_animal_count(self.trade_animal_type)
-        trade_amount = min(initiator_count, target_count)
-
-        # Initiator wins - takes trade_amount animals from target
-        animals_to_transfer = target.remove_animals(self.trade_animal_type, trade_amount)
-        for animal in animals_to_transfer:
-            initiator.add_animal(animal)
-
-        self._log_action("accept_trade", {
-            "target": target.player_id,
-            "initiator": initiator.player_id,
-            "animal": self.trade_animal_type.display_name,
-            "animals_transferred": len(animals_to_transfer)
-        })
-
-        self._end_cow_trade()
-        return True
-
-    def counter_trade_offer(self, counter_cards: List[MoneyCard]) -> bool:
-        """Target player makes a counter offer."""
-        if self.phase != GamePhase.COW_TRADE:
-            return False
-
-        target = self.players[self.trade_target]
-
-        # Check target has the cards
-        if not all(card in target.money for card in counter_cards):
-            return False
-
-        self.trade_counter_offer = counter_cards
-
-        # Resolve the trade
-        self._resolve_cow_trade()
-        return True
-
-    def _resolve_cow_trade(self):
-        """Resolve a cow trade after counter offer.
+    def execute_cow_trade(self) -> bool:
+        """Execute cow trade using game state after counter offer has been made.
 
         Trade rules:
         - If one player has only 1 animal: trade is for 1 animal (even if other has more)
         - If both have 2 or more: trade is for min(initiator_count, target_count)
         - Winner takes that many animals from loser
         """
+        if self.phase != GamePhase.COW_TRADE_RESPONSE:
+            return False
+
         initiator = self.players[self.trade_initiator]
         target = self.players[self.trade_target]
 
-        offer_value = calculate_total_value(self.trade_offer)
-        counter_value = calculate_total_value(self.trade_counter_offer)
+        # Validate trade is possible
+        if not initiator.has_animal_type(self.trade_animal_type):
+            return False
+        if not target.has_animal_type(self.trade_animal_type):
+            return False
+        if target.has_complete_set(self.trade_animal_type):
+            return False
 
-        # Exchange money
-        initiator.remove_money(self.trade_offer)
-        target.add_money(self.trade_offer)
-        target.remove_money(self.trade_counter_offer)
-        initiator.add_money(self.trade_counter_offer)
+        #TODO maybe check if player has enough money if not return false?
+
+        self._log_action("start_cow_trade", {
+            "initiator": initiator.player_id,
+            "target": self.trade_target,
+            "animal": self.trade_animal_type.display_name,
+            "offer": self.trade_offer,
+            "counter_offer": self.trade_counter_offer
+        })
+
+
+        # Exchange money - select cards from amounts and transfer
+        if self.trade_offer > 0:
+            offer_cards = initiator.select_payment_cards(self.trade_offer)
+            initiator.remove_money(offer_cards)
+            target.add_money(offer_cards)
+
+        if self.trade_counter_offer > 0:
+            counter_cards = target.select_payment_cards(self.trade_counter_offer)
+            target.remove_money(counter_cards)
+            initiator.add_money(counter_cards)
 
         # Determine trade amount: min of what both players have
         initiator_count = initiator.get_animal_count(self.trade_animal_type)
@@ -474,14 +417,15 @@ class Game:
         trade_amount = min(initiator_count, target_count)
 
         # Determine winner and transfer animals
-        if offer_value >= counter_value:
+        animals = []
+        winner = "initiator"  # Default in case of tie
+        if self.trade_offer >= self.trade_counter_offer:
             # Initiator wins - takes trade_amount animals from target
             # TIE -> initiator wins
             animals = target.remove_animals(self.trade_animal_type, trade_amount)
             for animal in animals:
                 initiator.add_animal(animal)
-            winner = "initiator"
-        elif counter_value > offer_value:
+        else:
             # Target wins - takes trade_amount animals from initiator
             animals = initiator.remove_animals(self.trade_animal_type, trade_amount)
             for animal in animals:
@@ -490,20 +434,23 @@ class Game:
 
         self._log_action("resolve_trade", {
             "winner": winner,
-            "offer": offer_value,
-            "counter": counter_value,
-            "animals_transferred": len(animals) if 'animals' in locals() else 0
+            "offer": self.trade_offer,
+            "counter": self.trade_counter_offer,
+            "animals_transferred": len(animals)
         })
 
         self._end_cow_trade()
+
+        return True
+
 
     def _end_cow_trade(self):
         """End the cow trade and move to next turn."""
         self.trade_initiator = None
         self.trade_target = None
         self.trade_animal_type = None
-        self.trade_offer = []
-        self.trade_counter_offer = []
+        self.trade_offer = 0
+        self.trade_counter_offer = 0
         self._next_turn()
 
     def _next_turn(self):
@@ -514,7 +461,7 @@ class Game:
         if self.is_game_over():
             self.phase = GamePhase.GAME_OVER
         else:
-            self.phase = GamePhase.PLAYER_TURN
+            self.phase = GamePhase.PLAYER_TURN_CHOICE
 
             # If deck is empty, automatically skip players with no valid actions
             # (those who only have complete sets)
@@ -533,59 +480,6 @@ class Game:
                 # Double-check if game is now over after skipping
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
-
-    def _generate_money_combinations(self, money_cards: List[MoneyCard]) -> List[List[MoneyCard]]:
-        """Generate all unique combinations of money cards based on value.
-
-        Returns a list of card lists. For multiple cards of the same value,
-        it uses the specific card instances ensuring validity.
-        """
-        import itertools
-        from collections import Counter
-
-        # Group cards by value to key access
-        cards_by_value = {}
-        for card in money_cards:
-            if card.value not in cards_by_value:
-                cards_by_value[card.value] = []
-            cards_by_value[card.value].append(card)
-
-        # Count available quantities for each value
-        counts = Counter(card.value for card in money_cards)
-        unique_values = sorted(counts.keys())
-
-        # Generate all possible counts for each value
-        # e.g. for {10: 2, 50: 1} -> (0..2 tens) x (0..1 fifties)
-        ranges = [range(counts[val] + 1) for val in unique_values]
-        
-        combinations = []
-        for quantities in itertools.product(*ranges):
-            # Skip empty set if that's not a valid action (assuming at least 1 card or specific 0 card needed)
-            # But "0 cards" might be valid bluff? Validating against "lowest level actions" usually implies explicit choices.
-            # Let's include empty set for now, filtering can happen safely later if needed.
-            # Actually, usually you must bid SOMETHING or Pass. For Cow Trade, you make an offer.
-            # If the offer is empty, it's 0 value.
-            if sum(quantities) == 0:
-                combinations.append([])
-                continue
-
-            current_combo = []
-            valid_combo = True
-            for i, qty in enumerate(quantities):
-                if qty > 0:
-                    val = unique_values[i]
-                    # verify we have enough cards (we should, by definition of ranges)
-                    if len(cards_by_value[val]) < qty:
-                        # thoroughness check, should not happen
-                        valid_combo = False
-                        break
-                    # Take the first 'qty' cards of this value
-                    current_combo.extend(cards_by_value[val][:qty])
-            
-            if valid_combo:
-                combinations.append(current_combo)
-
-        return combinations
 
     def is_game_over(self) -> bool:
         """Check if the game is over.

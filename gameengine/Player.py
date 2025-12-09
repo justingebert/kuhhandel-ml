@@ -105,6 +105,45 @@ class Player:
 
         return total_value * num_complete_sets
 
+    def select_payment_cards(self, amount: int) -> List[MoneyCard]:
+        """Select money cards to pay a specific amount (or more if exact not possible).
+
+        Uses dynamic programming to find the optimal combination of cards.
+        Prefers exact payment, falls back to minimum overpayment if necessary.
+
+        Args:
+            amount: The amount to pay
+
+        Returns:
+            List of money cards to use for payment
+
+        Raises:
+            ValueError: If payment is not possible with available cards
+        """
+        # Sort cards by value (descending - pay with largest bills first)
+        sorted_cards = sorted(self.money, key=lambda c: c.value, reverse=True)
+
+        # Build all reachable amounts with their card combinations
+        reachable = {0: []}
+        for card in sorted_cards:
+            new = {}
+            for s, combo in reachable.items():
+                ns = s + card.value
+                if ns not in reachable and ns not in new:
+                    new[ns] = combo + [card]
+            reachable.update(new)
+
+        # Exact solution
+        if amount in reachable:
+            return reachable[amount]
+
+        # Fallback: Overpay with minimum amount
+        bigger = [x for x in reachable if x >= amount]
+        if bigger:
+            return reachable[min(bigger)]
+
+        raise ValueError(f"Cannot pay {amount} with available money cards")
+
     def __repr__(self) -> str:
         return f"Player({self.name}, Money: {self.get_total_money()}, Animals: {len(self.animals)})"
 

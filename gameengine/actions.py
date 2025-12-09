@@ -1,10 +1,21 @@
 """Type-safe action definitions for the game using dataclasses."""
 from dataclasses import dataclass, field
-from typing import List, Union
-from .Money import MoneyCard
+from enum import Enum
+from typing import Union
 from .Animal import AnimalType
-from .game import ActionType
 
+class ActionType(Enum):
+    """Types of actions players can take."""
+    START_AUCTION = "start_auction"
+    START_COW_TRADE = "start_cow_trade"
+    AUCTION_BID = "auction-bid"
+    AUCTION_PASS = "pass"
+    BUY_AS_AUCTIONEER = "buy_as_auctioneer"
+    PASS_AS_AUCTIONEER = "pass_as_auctioneer"
+    COW_TRADE_CHOOSE_OPPONENT = "cow_trade_choose_opponent"
+    COW_TRADE_CHOOSE_ANIMAL = "cow_trade_choose_animal"
+    COW_TRADE_OFFER = "cow_trade_offer"
+    COUNTER_OFFER = "counter_offer"
 
 # Base class for all actions (optional but recommended)
 @dataclass(frozen=True)
@@ -12,76 +23,78 @@ class GameActionBase:
     """Base class for all game actions."""
     pass
 
-
-@dataclass(frozen=True)
-class BidAction(GameActionBase):
-    amount: int
-    type: ActionType = field(default=ActionType.BID, init=False)
-
-
-@dataclass(frozen=True)
-class PassAction(GameActionBase):
-    type: ActionType = field(default=ActionType.PASS, init=False)
-
-
 @dataclass(frozen=True)
 class StartAuctionAction(GameActionBase):
     type: ActionType = field(default=ActionType.START_AUCTION, init=False)
 
+@dataclass(frozen=True)
+class AuctionBidAction(GameActionBase):
+    amount: int
+    type: ActionType = field(default=ActionType.AUCTION_BID, init=False)
+
+@dataclass(frozen=True)
+class AuctionPassAction(GameActionBase):
+    type: ActionType = field(default=ActionType.AUCTION_PASS, init=False)
 
 @dataclass(frozen=True)
 class BuyAsAuctioneerAction(GameActionBase):
     type: ActionType = field(default=ActionType.BUY_AS_AUCTIONEER, init=False)
 
+@dataclass(frozen=True)
+class PassAsAuctioneerAction(GameActionBase):
+    type: ActionType = field(default=ActionType.PASS_AS_AUCTIONEER, init=False)
 
 @dataclass(frozen=True)
-class StartCowTradeAction(GameActionBase):
+class CowTradeChooseOpponentAction(GameActionBase):
     target_id: int
+    type: ActionType = field(default=ActionType.COW_TRADE_CHOOSE_OPPONENT, init=False)
+
+@dataclass(frozen=True)
+class CowTradeChooseAnimalAction(GameActionBase):
     animal_type: AnimalType
-    money_cards: List[MoneyCard]
-    type: ActionType = field(default=ActionType.START_COW_TRADE, init=False)
-
+    type: ActionType = field(default=ActionType.COW_TRADE_CHOOSE_ANIMAL, init=False)
 
 @dataclass(frozen=True)
-class CounterOfferAction(GameActionBase):
-    money_cards: List[MoneyCard]
+class CowTradeOfferAction(GameActionBase):
+    amount: int
+    type: ActionType = field(default=ActionType.COW_TRADE_OFFER, init=False)
+
+@dataclass(frozen=True)
+class CowTradeCounterOfferAction(GameActionBase):
+    amount: int
     type: ActionType = field(default=ActionType.COUNTER_OFFER, init=False)
-
-
-@dataclass(frozen=True)
-class AcceptOfferAction(GameActionBase):
-    type: ActionType = field(default=ActionType.ACCEPT_OFFER, init=False)
 
 
 # Union of all possible actions
 GameAction = Union[
-    BidAction,
-    PassAction,
     StartAuctionAction,
+    AuctionBidAction,
+    AuctionPassAction,
     BuyAsAuctioneerAction,
-    StartCowTradeAction,
-    CounterOfferAction,
-    AcceptOfferAction
+    CowTradeChooseOpponentAction,
+    CowTradeChooseAnimalAction,
+    CowTradeOfferAction,
+    CowTradeCounterOfferAction
 ]
 
 
 class Actions:
     """Factory class for creating action objects with a clean API."""
-    
-    @staticmethod
-    def bid(amount: int) -> BidAction:
-        """Create a bid action."""
-        return BidAction(amount = amount)
-    
-    @staticmethod
-    def pass_action() -> PassAction:
-        """Create a pass action."""
-        return PassAction()
-    
+
     @staticmethod
     def start_auction() -> StartAuctionAction:
         """Create a start auction action."""
         return StartAuctionAction()
+
+    @staticmethod
+    def bid(amount: int) -> AuctionBidAction:
+        """Create a bid action."""
+        return AuctionBidAction(amount=amount)
+
+    @staticmethod
+    def pass_action() -> AuctionPassAction:
+        """Create a pass action."""
+        return AuctionPassAction()
     
     @staticmethod
     def buy_as_auctioneer() -> BuyAsAuctioneerAction:
@@ -89,21 +102,29 @@ class Actions:
         return BuyAsAuctioneerAction()
     
     @staticmethod
-    def start_cow_trade(target_id: int, animal_type: AnimalType, money_cards: List[MoneyCard]) -> StartCowTradeAction:
-        """Create a start cow trade action."""
-        return StartCowTradeAction(
-            target_id=target_id,
-            animal_type=animal_type,
-            money_cards=money_cards
-        )
-    
+    def pass_as_auctioneer() -> PassAsAuctioneerAction:
+        """Create a pass as auctioneer action."""
+        return PassAsAuctioneerAction()
+
     @staticmethod
-    def counter_offer(money_cards: List[MoneyCard]) -> CounterOfferAction:
+    def cow_trade_choose_opponent(target_id: int) -> CowTradeChooseOpponentAction:
+        """Create a cow trade choose opponent action."""
+        return CowTradeChooseOpponentAction(target_id=target_id)
+
+    @staticmethod
+    def cow_trade_choose_animal(animal_type: AnimalType) -> CowTradeChooseAnimalAction:
+        """Create a cow trade choose animal action."""
+        return CowTradeChooseAnimalAction(animal_type=animal_type)
+
+    @staticmethod
+    def cow_trade_offer(amount: int) -> CowTradeOfferAction:
+        """Create a cow trade offer action."""
+        return CowTradeOfferAction(amount=amount)
+
+    @staticmethod
+    def counter_offer(amount: int) -> CowTradeCounterOfferAction:
         """Create a counter offer action."""
-        return CounterOfferAction(money_cards=money_cards)
-    
-    @staticmethod
-    def accept_offer() -> AcceptOfferAction:
-        """Create an accept offer action."""
-        return AcceptOfferAction()
+        return CowTradeCounterOfferAction(amount=amount)
+
+
 
