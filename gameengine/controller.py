@@ -69,50 +69,50 @@ class GameController:
 
     def _handle_auction_bidding(self):
         """
-        Handle the dynamic auction loop.
-        Iterates through players asking for bids until everyone passes.
+        Handle ONE bid decision during auction.
+        Called repeatedly until all players have passed.
         """
+        # Check if auction round is complete
+        if self.game.is_auction_round_complete():
+            self.game.end_auction_bidding()
+            return
+
+        bidder_id = self.game.auction_current_bidder_idx
         auctioneer_id = self.game.current_player_idx
-        highest_bid_changed = True
 
-        # 1. Bidding Loop
-        while highest_bid_changed:
-            highest_bid_changed = False
+        # Skip if this bidder can't afford the minimum bid
+        min_bid = self.game.auction_high_bid + 10
+        bidder_player = self.game.players[bidder_id]
+        if bidder_player.get_total_money() < min_bid:
+            self.game.auction_bidders_passed.add(bidder_id)
+            self.game.advance_auction_bidder()
+            return
 
-            # Ask each player (except auctioneer)
-            for i in range(self.game.num_players):
-                bidder_id = (auctioneer_id + 1 + i) % self.game.num_players
-                if bidder_id == auctioneer_id:
-                    continue
+        # Skip if this bidder has already passed this round
+        if bidder_id in self.game.auction_bidders_passed:
+            self.game.advance_auction_bidder()
+            return
 
-                # Check if player can even bid higher
-                min_bid = self.game.auction_high_bid + 10
-                bidder_player = self.game.players[bidder_id]
-                if bidder_player.get_total_money() < min_bid:
-                    continue
+        # Get action from current bidder
+        agent = self.agents[bidder_id]
+        valid_actions = self.game.get_valid_actions(bidder_id)
+        
+        action = agent.get_action(self.game, valid_actions)
 
-                agent = self.agents[bidder_id]
-                # Get valid actions from game logic
-                valid_actions = self.game.get_valid_actions(bidder_id)
-                # If no valid actions (e.g. can't bid higher), get_valid_actions returns [Pass] usually.
-                # If truly empty, force pass?
-                if not valid_actions:
-                    # Logic safety: if no actions, pass.
-                    from gameengine.actions import Actions  # Wieso import hier??
-                    valid_actions = [Actions.pass_action()]
+        if action.type == ActionType.AUCTION_BID:
+            bid_amount = action.amount
+            if bid_amount >= min_bid:
+                success = self.game.place_bid(bidder_id, bid_amount)
+                if success:
+                    # New bid placed - reset passes so others can bid again
+                    self.game.reset_auction_passes()
+        else:
+            # Player passed
+            self.game.auction_bidders_passed.add(bidder_id)
 
-                action = agent.get_action(self.game, valid_actions)
+        # Move to next bidder
+        self.game.advance_auction_bidder()
 
-                if action.type == ActionType.AUCTION_BID:
-                    bid_amount = action.amount
-
-                    if bid_amount >= min_bid:
-                        success = self.game.place_bid(bidder_id, bid_amount)
-                        if success:
-                            highest_bid_changed = True
-                            # Notify others? (Optional)
-
-        self.game.end_auction_bidding()
 
     def _handle_auctioneer_decision(self):
         """

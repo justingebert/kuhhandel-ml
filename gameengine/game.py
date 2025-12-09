@@ -52,6 +52,10 @@ class Game:
         self.auction_high_bidder: Optional[int] = None
         self.auction_high_bid: int = 0
 
+        # Step-based auction tracking
+        self.auction_current_bidder_idx: Optional[int] = None
+        self.auction_bidders_passed: set = set()  # Track who has passed this round
+
         # trade state
         self.trade_initiator: Optional[int] = None
         self.trade_target: Optional[int] = None
@@ -215,6 +219,10 @@ class Game:
         self.auction_high_bidder = None
         self.auction_high_bid = 0
 
+        # Initialize step-based auction tracking
+        # First bidder is the player after the auctioneer
+        self.auction_current_bidder_idx = (self.current_player_idx + 1) % self.num_players
+
         # Check for donkey
         if self.current_animal.animal_type == AnimalType.DONKEY:
             self._handle_donkey()
@@ -340,15 +348,65 @@ class Game:
 
     def end_auction_bidding(self):
         """End the auction bidding phase."""
+        self.auction_current_bidder_idx = None
         self.phase = GamePhase.AUCTIONEER_DECISION
 
-    def _end_auction(self):
+    def end_auction(self):
         """End the auction and move to next turn."""
         self.current_animal = None
         self.auction_bids.clear()
         self.auction_high_bidder = None
         self.auction_high_bid = 0
+        self.auction_current_bidder_idx = None
+        self.auction_bidders_passed.clear()
         self._next_turn()
+
+    def get_current_decision_player(self) -> int:
+        """Get the player who needs to make a decision right now.
+        
+        During auction bidding, this is the current bidder (not the auctioneer).
+        During other phases, this is the current player.
+        """
+        if self.phase == GamePhase.AUCTION_BIDDING:
+            return self.auction_current_bidder_idx
+        elif self.phase == GamePhase.COW_TRADE_RESPONSE:
+            return self.trade_target
+        else:
+            return self.current_player_idx
+
+    def advance_auction_bidder(self):
+        """Move to the next bidder in the auction rotation."""
+        auctioneer = self.current_player_idx
+        current = self.auction_current_bidder_idx
+        
+        # Find next non-auctioneer player
+        next_bidder = (current + 1) % self.num_players
+        if next_bidder == auctioneer:
+            next_bidder = (next_bidder + 1) % self.num_players
+        
+        self.auction_current_bidder_idx = next_bidder
+
+    def reset_auction_passes(self):
+        """Reset pass tracking when a new bid is placed."""
+        self.auction_bidders_passed.clear()
+
+    def is_auction_round_complete(self) -> bool:
+        """Check if all non-auctioneer players have passed."""
+        auctioneer = self.current_player_idx
+        non_auctioneer_count = self.num_players - 1
+        
+        # Check if all non-auctioneers have passed
+        if len(self.auction_bidders_passed) >= non_auctioneer_count:
+            return True
+        
+        # Also check if no one can afford to outbid
+        min_bid = self.auction_high_bid + 10
+        for i in range(self.num_players):
+            if i != auctioneer and i not in self.auction_bidders_passed:
+                if self.players[i].get_total_money() >= min_bid:
+                    return True
+        
+        return False
 
     def choose_cow_trade_opponent(self, target_id: int):
         self.trade_initiator = self.current_player_idx

@@ -95,8 +95,14 @@ class KuhhandelEnv(gym.Env):
         """
         self.episode_step += 1
 
-        self._decode_action(action)
+        # Store the action in the RL agent so it can be used when controller asks
+        rl_agent = self.agents[self.rl_agent_id]
+        rl_agent.last_action_int = action
 
+        # execute the RL agent's action
+        self.controller.step()
+
+        # Continue playing until the RL agent needs to make another decision
         self._play_until_next_decision()
 
         terminated = self.game.is_game_over()
@@ -109,62 +115,21 @@ class KuhhandelEnv(gym.Env):
 
         return obs, reward, terminated, truncated, info
 
-    #TODO this first needs a refactor of the game phases (see TODO in game.py ), this will act as similar to the controller
-    # here we will decode the
-    def _decode_action(self, action_index: int):
-        """Map a discrete action index to a concrete game operation"""
-        if self.game.phase == GamePhase.PLAYER_TURN_CHOICE:
-            if action_index == ACTION_START_AUCTION:
-                self.game.start_auction()
-            elif ACTION_COW_CHOOSE_OPP_BASE <= action_index <= ACTION_COW_CHOOSE_OPP_END:
-                opponent_offset = action_index - ACTION_COW_CHOOSE_OPP_BASE
-                self.game.choose_cow_trade_opponent(opponent_offset)
-        elif self.game.phase == GamePhase.AUCTION_BIDDING:
-            if ACTION_AUCTION_BID_BASE <= action_index <= AUCTION_BID_END:
-                bid_level = action_index - ACTION_AUCTION_BID_BASE
-                if bid_level == 0:
-                    # Pass
-                    pass  # a player can never bid 0 if he decides to  TODO REMOVE BASE FROM BIDS USING MASK
-                else:
-                    bid_amount = bid_level * MONEY_STEP
-                    self.game.place_bid(self.rl_agent_id, bid_amount)
-        elif self.game.phase == GamePhase.AUCTIONEER_DECISION:
-            if action_index == ACTION_AUCTIONEER_ACCEPT:
-                self.game.auctioneer_passes()
-            elif action_index == ACTION_AUCTIONEER_BUY:
-                self.game.auctioneer_buys()
-        elif self.game.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL:
-            if ACTION_COW_CHOOSE_ANIMAL_BASE <= action_index <= ACTION_COW_CHOOSE_ANIMAL_END:
-                animal_idx = action_index - ACTION_COW_CHOOSE_ANIMAL_BASE
-                animal_type = AnimalType.get_all_types()[animal_idx]
-                self.game.choose_cow_trade_animal(animal_type)
-        elif self.game.phase == GamePhase.COW_TRADE_OFFER:
-            if ACTION_COW_OFFER_BASE <= action_index <= ACTION_COW_OFFER_END:
-                offer_level = action_index - ACTION_COW_OFFER_BASE
-                offer_amount = offer_level * MONEY_STEP
-                self.game.choose_cow_trade_offer(offer_amount)
-        elif self.game.phase == GamePhase.COW_TRADE_RESPONSE:
-            if ACTION_COW_RESP_COUNTER_BASE <= action_index <= COW_RESP_COUNTER_END:
-                counter_level = action_index - ACTION_COW_RESP_COUNTER_BASE
-                counter_amount = counter_level * MONEY_STEP
-                self.game.choose_cow_trade_counter_offer(counter_amount)
-                self.game.execute_cow_trade()
-        else:
-            raise ValueError(f"Invalid game phase: {self.game.phase}")
-
     def _play_until_next_decision(self):
-        steps_taken = 0
-        max_steps_per_action = 20  # Safety limit
+        """Advance the game until the RL agent needs to make a decision."""
+        max_steps = 100  # Safety limit to prevent infinite loops
 
-        while steps_taken < max_steps_per_action:
+        for _ in range(max_steps):
             if self.game.is_game_over():
                 break
 
-            self.controller.step()
-            steps_taken += 1
-
-            if self.game.current_player_idx == self.rl_agent_id or self.game.is_game_over():
+            # Check if the RL agent needs to make the next decision
+            decision_player = self.game.get_current_decision_player()
+            if decision_player == self.rl_agent_id:
                 break
+
+            # Let the controller handle one step for the other player
+            self.controller.step()
 
 
     def _compute_reward(self, terminated: bool) -> float:
