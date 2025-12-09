@@ -5,7 +5,6 @@ import gymnasium
 from gameengine import Game
 from gameengine.actions import GameAction, ActionType
 from gameengine.agent import Agent
-from rl.env import KuhhandelEnv
 
 
 class RLAgent(Agent):
@@ -18,4 +17,4 @@ class RLAgent(Agent):
 
     def get_action(self, game: Game, valid_actions: List[ActionType]) -> GameAction:
         """This will be called by the controller - we return the decoded action."""
-        return self.env._decode_action(self.last_action_int, game)
+        return self.env._decode_action(self.last_action_int)
