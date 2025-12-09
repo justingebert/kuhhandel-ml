@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from gameengine import Game, ActionType
-from gameengine.actions import GameAction
+from gameengine import Game
+from gameengine.actions import GameAction, ActionType
 
 
 class Agent(ABC):

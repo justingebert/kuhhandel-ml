@@ -6,10 +6,10 @@ from typing import List
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gameengine import Game, AnimalType, ActionType, GamePhase
+from gameengine import Game, AnimalType, GamePhase
 from gameengine.controller import GameController
 from gameengine.agent import Agent
-from gameengine.actions import GameAction
+from gameengine.actions import GameAction, ActionType
 
 
 def print_game_state(game: Game):
@@ -49,9 +49,9 @@ class RandomAgent(Agent):
 
         # 1. Auction Bidding
         # If we can bid, should we?
-        if ActionType.BID in actions_by_type:
+        if ActionType.AUCTION_BID in actions_by_type:
             # Strategies:
-            bids = actions_by_type[ActionType.BID]
+            bids = actions_by_type[ActionType.AUCTION_BID]
             # Find minimum bid
             # Bids are granular now, we valid_actions contains all valid bids with cards.
             # We just need to pick one.
@@ -71,8 +71,8 @@ class RandomAgent(Agent):
                 return min_bid_action
             
             # Else try to pass
-            if ActionType.PASS in actions_by_type:
-                return actions_by_type[ActionType.PASS][0]
+            if ActionType.AUCTION_PASS in actions_by_type:
+                return actions_by_type[ActionType.AUCTION_PASS][0]
 
         # 2. Auctioneer Decision
         if ActionType.BUY_AS_AUCTIONEER in actions_by_type:
@@ -82,38 +82,45 @@ class RandomAgent(Agent):
             if game.auction_high_bid < 50:
                  return buy_action
             # Else pass (sell)
-            if ActionType.PASS in actions_by_type:
-                return actions_by_type[ActionType.PASS][0]
+            if ActionType.PASS_AS_AUCTIONEER in actions_by_type:
+                return actions_by_type[ActionType.PASS_AS_AUCTIONEER][0]
 
-        # 3. Cow Trade Response (Counter vs Accept)
+        if ActionType.PASS_AS_AUCTIONEER in actions_by_type:
+            return actions_by_type[ActionType.PASS_AS_AUCTIONEER][0]
+
+        # 3. Cow Trade Response (Counter offer)
         if ActionType.COUNTER_OFFER in actions_by_type:
-            # 50% chance to counter implies we prefer counter over accept
-            if random.random() < 0.5:
-                # Pick a random counter offer (includes bluffs!)
-                return random.choice(actions_by_type[ActionType.COUNTER_OFFER])
-            # Else accept
-            if ActionType.ACCEPT_OFFER in actions_by_type:
-                 return actions_by_type[ActionType.ACCEPT_OFFER][0]
+            # Pick a random counter offer
+            return random.choice(actions_by_type[ActionType.COUNTER_OFFER])
 
-        # 4. Main Turn (Start Auction vs Trade)
+        # 4. Cow Trade Offer
+        if ActionType.COW_TRADE_OFFER in actions_by_type:
+            # Pick a random offer amount
+            return random.choice(actions_by_type[ActionType.COW_TRADE_OFFER])
+
+        # 5. Cow Trade Choose Animal
+        if ActionType.COW_TRADE_CHOOSE_ANIMAL in actions_by_type:
+            return random.choice(actions_by_type[ActionType.COW_TRADE_CHOOSE_ANIMAL])
+
+        # 6. Main Turn (Start Auction vs Choose Opponent for Trade)
         possible_types = []
         if ActionType.START_AUCTION in actions_by_type:
             possible_types.append(ActionType.START_AUCTION)
-        if ActionType.START_COW_TRADE in actions_by_type:
-            possible_types.append(ActionType.START_COW_TRADE)
-            
+        if ActionType.COW_TRADE_CHOOSE_OPPONENT in actions_by_type:
+            possible_types.append(ActionType.COW_TRADE_CHOOSE_OPPONENT)
+
         if not possible_types:
             # Should be pass if nothing else?
-             if ActionType.PASS in actions_by_type:
-                return actions_by_type[ActionType.PASS][0]
+             if ActionType.AUCTION_PASS in actions_by_type:
+                return actions_by_type[ActionType.AUCTION_PASS][0]
              # Fallback
              return valid_actions[0]
 
         # Decision
         chosen_type = None
-        if ActionType.START_AUCTION in possible_types and ActionType.START_COW_TRADE in possible_types:
+        if ActionType.START_AUCTION in possible_types and ActionType.COW_TRADE_CHOOSE_OPPONENT in possible_types:
             if not game.animal_deck:
-                chosen_type = ActionType.START_COW_TRADE
+                chosen_type = ActionType.COW_TRADE_CHOOSE_OPPONENT
             else:
                 chosen_type = random.choice(possible_types)
         elif possible_types:

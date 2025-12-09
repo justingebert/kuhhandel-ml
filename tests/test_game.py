@@ -4,20 +4,20 @@ Comprehensive pytest test suite for the Kuhhandel game engine.
 Run with: pytest tests/test_game.py -v
 Coverage: pytest tests/test_game.py --cov=gameengine --cov-report=html
 """
-import pytest
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gameengine import Game, AnimalType, GamePhase, ActionType
+from gameengine import Game, AnimalType, GamePhase
 from gameengine.Animal import AnimalCard
-from gameengine.Money import MoneyDeck, MoneyCard
+from gameengine.Money import MoneyDeck
 from gameengine.Player import Player
 from gameengine.controller import GameController
 from gameengine.agent import Agent
-from gameengine.actions import Actions, GameAction
-import gameengine.actions as game_actions
+from gameengine.actions import Actions, ActionType
 
 # =============================================================================
 # FIXTURES
@@ -166,7 +166,7 @@ class TestGameInitialization:
         """Test that setup initializes game correctly."""
         assert len(game.players) == 3
         assert len(game.animal_deck) == 40  # 10 types x 4 cards
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.PLAYER_TURN_CHOICE
 
         # Check starting money
         for player in game.players:
@@ -206,7 +206,7 @@ class TestAuction:
         animal = game.start_auction()
 
         assert animal is not None
-        assert game.phase == GamePhase.AUCTION
+        assert game.phase == GamePhase.AUCTION_BIDDING
         assert len(game.animal_deck) == initial_deck_size - 1
         assert game.current_animal == animal
 
@@ -214,16 +214,21 @@ class TestAuction:
         """Test valid actions during auction."""
         game.start_auction()
 
-        # Auctioneer can pass/buy
+        # During AUCTION_BIDDING, auctioneer has no actions (handled in AUCTIONEER_DECISION phase)
         auctioneer_actions = game.get_valid_actions(game.current_player_idx)
-        assert game_actions.Actions.pass_action() in auctioneer_actions
+        assert len(auctioneer_actions) == 0
 
-        # Other players can bid
+        # Other players can bid or pass
         other_player = (game.current_player_idx + 1) % game.num_players
         other_actions = game.get_valid_actions(other_player)
-        # smallest_bill = game.players[other_player].money[2] #Drittkleinste Karte damit er keine Null versucht zu bieten
-        # assert game_actions.Actions.bid([smallest_bill]) in other_actions
-        assert game_actions.Actions.bid(amount=0) in other_actions
+        assert Actions.pass_action() in other_actions
+        assert Actions.bid(amount=0) in other_actions
+
+        # After bidding ends, auctioneer can pass or buy
+        game.end_auction_bidding()
+        assert game.phase == GamePhase.AUCTIONEER_DECISION
+        auctioneer_decision_actions = game.get_valid_actions(game.current_player_idx)
+        assert Actions.pass_as_auctioneer() in auctioneer_decision_actions
 
     def test_bidding(self, game):
         """Test bidding on an auction."""
@@ -255,10 +260,14 @@ class TestAuction:
         auctioneer = game.get_current_player()
         animal = game.start_auction()
 
+        # Transition to auctioneer decision phase
+        game.end_auction_bidding()
+        assert game.phase == GamePhase.AUCTIONEER_DECISION
+
         game.auctioneer_passes()
 
         # Auctioneer gets animal for free
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.PLAYER_TURN_CHOICE
         assert animal in auctioneer.animals
 
     def test_auctioneer_passes_with_bids(self, game):
@@ -268,11 +277,14 @@ class TestAuction:
         high_bidder = game.players[high_bidder_id]
 
         game.place_bid(high_bidder_id, 20)
+
+        # Transition to auctioneer decision phase
+        game.end_auction_bidding()
         game.auctioneer_passes()
 
         # High bidder gets animal
         assert len(high_bidder.animals) == 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.PLAYER_TURN_CHOICE
 
     def test_auctioneer_buys(self, game):
         """Test auctioneer buying the animal."""
@@ -283,6 +295,8 @@ class TestAuction:
         game.place_bid(other_player, 20)
         initial_money = game.players[auctioneer_id].get_total_money()
         
+        # Transition to auctioneer decision phase
+        game.end_auction_bidding()
         game.auctioneer_buys()
 
         # Auctioneer should have the animal and paid the bid
@@ -305,71 +319,85 @@ class TestTrade:
         assert len(actions) > 1
 
     def test_start_trade(self, game_with_trades):
-        """Test starting a cow trade."""
+        """Test starting a cow trade using the new phase-based flow."""
         game = game_with_trades
-        offer_cards = [game.players[0].money[0]]
 
-        success = game.start_cow_trade(1, AnimalType.COW, offer_cards)
-
-        assert success
-        assert game.phase == GamePhase.COW_TRADE
+        # Step 1: Choose opponent
+        game.choose_cow_trade_opponent(1)
+        assert game.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL
         assert game.trade_initiator == 0
         assert game.trade_target == 1
+
+        # Step 2: Choose animal
+        game.choose_cow_trade_animal(AnimalType.COW)
+        assert game.phase == GamePhase.COW_TRADE_OFFER
+        assert game.trade_animal_type == AnimalType.COW
+
+        # Step 3: Make offer
+        game.choose_cow_trade_offer(10)
+        assert game.phase == GamePhase.COW_TRADE_RESPONSE
+        assert game.trade_offer == 10
 
     def test_start_trade_with_empty_offer(self, game_with_trades):
         """Test starting trade with no money (bluffing)."""
         game = game_with_trades
         
-        success = game.start_cow_trade(1, AnimalType.COW, [])
-        
-        assert success
-        assert game.trade_offer == []
+        game.choose_cow_trade_opponent(1)
+        game.choose_cow_trade_animal(AnimalType.COW)
+        game.choose_cow_trade_offer(0)  # Bluff with 0
+
+        assert game.trade_offer == 0
+        assert game.phase == GamePhase.COW_TRADE_RESPONSE
 
     def test_accept_trade(self, game_with_trades):
-        """Test accepting a trade offer."""
+        """Test accepting a trade offer (counter with 0 loses)."""
         game = game_with_trades
-        offer_cards = [game.players[0].money[0], game.players[0].money[1]]
-
-        game.start_cow_trade(1, AnimalType.COW, offer_cards)
         initial_p0_animals = len(game.players[0].animals)
 
-        game.accept_trade_offer()
+        # Start trade: offer 10
+        game.choose_cow_trade_opponent(1)
+        game.choose_cow_trade_animal(AnimalType.COW)
+        game.choose_cow_trade_offer(10)
+
+        # Counter with 0 (initiator wins)
+        game.choose_cow_trade_counter_offer(0)
+        game.execute_cow_trade()
 
         # Initiator should get the animal
         assert len(game.players[0].animals) == initial_p0_animals + 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.PLAYER_TURN_CHOICE
 
     def test_counter_offer_win(self, game_with_trades):
         """Test counter offer that wins."""
         game = game_with_trades
-
-        # Offer 0
-        offer_cards = [game.players[0].money[0]]
-        game.start_cow_trade(1, AnimalType.COW, offer_cards)
-
-        # Counter with 10 (higher)
-        counter_cards = [game.players[1].money[4]]  # 10-card
         initial_p1_animals = len(game.players[1].animals)
 
-        game.counter_trade_offer(counter_cards)
+        # Offer 0 (bluff)
+        game.choose_cow_trade_opponent(1)
+        game.choose_cow_trade_animal(AnimalType.COW)
+        game.choose_cow_trade_offer(0)
+
+        # Counter with 10 (higher)
+        game.choose_cow_trade_counter_offer(10)
+        game.execute_cow_trade()
 
         # Target wins (higher counter)
         assert len(game.players[1].animals) == initial_p1_animals + 1
-        assert game.phase == GamePhase.PLAYER_TURN
+        assert game.phase == GamePhase.PLAYER_TURN_CHOICE
 
     def test_counter_offer_lose(self, game_with_trades):
         """Test counter offer that loses."""
         game = game_with_trades
-
-        # Offer 10
-        offer_cards = [game.players[0].money[4]]
-        game.start_cow_trade(1, AnimalType.COW, offer_cards)
-
-        # Counter with 0 (lower)
-        counter_cards = [game.players[1].money[0]]
         initial_p0_animals = len(game.players[0].animals)
 
-        game.counter_trade_offer(counter_cards)
+        # Offer 10
+        game.choose_cow_trade_opponent(1)
+        game.choose_cow_trade_animal(AnimalType.COW)
+        game.choose_cow_trade_offer(10)
+
+        # Counter with 0 (lower)
+        game.choose_cow_trade_counter_offer(0)
+        game.execute_cow_trade()
 
         # Initiator wins (higher offer)
         assert len(game.players[0].animals) == initial_p0_animals + 1
@@ -377,16 +405,16 @@ class TestTrade:
     def test_trade_tie(self, game_with_trades):
         """Test tie handling in trade."""
         game = game_with_trades
-
-        # Offer 10
-        offer_cards = [game.players[0].money[4]]
-        game.start_cow_trade(1, AnimalType.COW, offer_cards)
-
-        # Counter with 10 (tie)
-        counter_cards = [game.players[1].money[5]]
         initial_p0_animals = len(game.players[0].animals)
 
-        game.counter_trade_offer(counter_cards)
+        # Offer 10
+        game.choose_cow_trade_opponent(1)
+        game.choose_cow_trade_animal(AnimalType.COW)
+        game.choose_cow_trade_offer(10)
+
+        # Counter with 10 (tie)
+        game.choose_cow_trade_counter_offer(10)
+        game.execute_cow_trade()
 
         # Initiator wins on tie (current implementation)
         # NOTE: Rules say should re-bid - this is a known discrepancy
@@ -401,9 +429,10 @@ class TestTrade:
             cow = AnimalCard(AnimalType.COW, 102 + i)
             game.players[1].add_animal(cow)
 
-        # Player 0 shouldn't be able to trade
+        # Player 0 shouldn't be able to trade (no COW_TRADE_CHOOSE_OPPONENT actions)
         actions = game.get_valid_actions(0)
-        assert ActionType.START_COW_TRADE not in actions
+        action_types = [a.type for a in actions]
+        assert ActionType.COW_TRADE_CHOOSE_OPPONENT not in action_types
 
 
 # =============================================================================
@@ -453,31 +482,42 @@ class TestActions:
     def test_bid_action(self):
         """Test creating a bid action."""
         action = Actions.bid(amount=50)
-        assert action.type == ActionType.BID
+        assert action.type == ActionType.AUCTION_BID
         assert action.amount == 50
 
     def test_pass_action(self):
         """Test creating a pass action."""
         action = Actions.pass_action()
-        assert action.type == ActionType.PASS
+        assert action.type == ActionType.AUCTION_PASS
 
     def test_start_auction_action(self):
         """Test creating a start auction action."""
         action = Actions.start_auction()
         assert action.type == ActionType.START_AUCTION
 
-    def test_start_cow_trade_action(self):
-        """Test creating a start cow trade action."""
-        money = [MoneyCard(10, 1)]  # value=10, card_id=1
-        action = Actions.start_cow_trade(
-            target_id=1,
-            animal_type=AnimalType.COW,
-            money_cards=money
-        )
-        assert action.type == ActionType.START_COW_TRADE
+    def test_cow_trade_choose_opponent_action(self):
+        """Test creating a cow trade choose opponent action."""
+        action = Actions.cow_trade_choose_opponent(target_id=1)
+        assert action.type == ActionType.COW_TRADE_CHOOSE_OPPONENT
         assert action.target_id == 1
+
+    def test_cow_trade_choose_animal_action(self):
+        """Test creating a cow trade choose animal action."""
+        action = Actions.cow_trade_choose_animal(animal_type=AnimalType.COW)
+        assert action.type == ActionType.COW_TRADE_CHOOSE_ANIMAL
         assert action.animal_type == AnimalType.COW
-        assert action.money_cards == money
+
+    def test_cow_trade_offer_action(self):
+        """Test creating a cow trade offer action."""
+        action = Actions.cow_trade_offer(amount=50)
+        assert action.type == ActionType.COW_TRADE_OFFER
+        assert action.amount == 50
+
+    def test_counter_offer_action(self):
+        """Test creating a counter offer action."""
+        action = Actions.counter_offer(amount=100)
+        assert action.type == ActionType.COUNTER_OFFER
+        assert action.amount == 100
 
 
 # =============================================================================

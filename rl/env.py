@@ -5,7 +5,6 @@ import numpy as np
 from gymnasium.spaces import Dict, Discrete, MultiDiscrete
 
 from gameengine import AnimalType, MoneyDeck
-from gameengine.Money import calculate_total_value
 from gameengine.agent import Agent
 from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
@@ -94,7 +93,7 @@ class KuhhandelEnv(gym.Env):
         """
         self.episode_step += 1
 
-        self._apply_action(action)
+        self._decode_action(action)
 
         self._play_until_next_decision()
 
@@ -110,18 +109,44 @@ class KuhhandelEnv(gym.Env):
 
     #TODO this first needs a refactor of the game phases (see TODO in game.py ), this will act as similar to the controller
     # here we will decode the
-    def _apply_action(self, action_index: int):
+    def _decode_action(self, action_index: int):
         """Map a discrete action index to a concrete game operation"""
-        if self.game.phase == GamePhase.PLAYER_TURN:
+        if self.game.phase == GamePhase.PLAYER_TURN_CHOICE:
             if action_index == ACTION_START_AUCTION:
-                pass
-            if action_index == ACTION_START_COW_TRADE:
-                pass
-        elif self.game.phase == GamePhase.AUCTION:
-            if action_index < ACTION_AUCTION_BID_BASE:
-                pass
-        elif self.game.phase == GamePhase.COW_TRADE:
-            pass
+                self.game.start_auction()
+            elif ACTION_COW_CHOOSE_OPP_BASE <= action_index <= ACTION_COW_CHOOSE_OPP_END:
+                opponent_offset = action_index - ACTION_COW_CHOOSE_OPP_BASE
+                self.game.choose_cow_trade_opponent(opponent_offset)
+        elif self.game.phase == GamePhase.AUCTION_BIDDING:
+            if ACTION_AUCTION_BID_BASE <= action_index <= AUCTION_BID_END:
+                bid_level = action_index - ACTION_AUCTION_BID_BASE
+                if bid_level == 0:
+                    # Pass
+                    pass  # a player can never bid 0 if he decides to  TODO REMOVE BASE FROM BIDS USING MASK
+                else:
+                    bid_amount = bid_level * MONEY_STEP
+                    self.game.place_bid(self.rl_agent_id, bid_amount)
+        elif self.game.phase == GamePhase.AUCTIONEER_DECISION:
+            if action_index == ACTION_AUCTIONEER_ACCEPT:
+                self.game.auctioneer_passes()
+            elif action_index == ACTION_AUCTIONEER_BUY:
+                self.game.auctioneer_buys()
+        elif self.game.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL:
+            if ACTION_COW_CHOOSE_ANIMAL_BASE <= action_index <= ACTION_COW_CHOOSE_ANIMAL_END:
+                animal_idx = action_index - ACTION_COW_CHOOSE_ANIMAL_BASE
+                animal_type = AnimalType.get_all_types()[animal_idx]
+                self.game.choose_cow_trade_animal(animal_type)
+        elif self.game.phase == GamePhase.COW_TRADE_OFFER:
+            if ACTION_COW_OFFER_BASE <= action_index <= ACTION_COW_OFFER_END:
+                offer_level = action_index - ACTION_COW_OFFER_BASE
+                offer_amount = offer_level * MONEY_STEP
+                self.game.choose_cow_trade_offer(offer_amount)
+        elif self.game.phase == GamePhase.COW_TRADE_RESPONSE:
+            if ACTION_COW_RESP_COUNTER_BASE <= action_index <= COW_RESP_COUNTER_END:
+                counter_level = action_index - ACTION_COW_RESP_COUNTER_BASE
+                counter_amount = counter_level * MONEY_STEP
+                self.game.choose_cow_trade_counter_offer(counter_amount)
+                self.game.execute_cow_trade()
         else:
             raise ValueError(f"Invalid game phase: {self.game.phase}")
 
@@ -178,8 +203,8 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": self.game.trade_initiator or N_PLAYERS,
             "trade_target": self.game.trade_target or N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_value": calculate_total_value(self.game.trade_offer),
-            "trade_counter_offer_value": calculate_total_value(self.game.trade_counter_offer),
+            "trade_offer_value": self.game.trade_offer or 0,
+            "trade_counter_offer_value": self.game.trade_counter_offer or 0,
         }
 
         return observation
@@ -194,36 +219,40 @@ max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
 
 # offers/bids as multiples of 10 up to MAX_MONEY
 MONEY_STEP = 10
-MAX_MONEY = 1000  # might adjust
+MAX_MONEY = 940*5  # might adjust
 N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
 
 # ----- ACTION INDICES -----
 # Turn-level actions
 ACTION_START_AUCTION = 0
-ACTION_START_COW_TRADE = 1
-# Auction bidding (non-auctioneer):
-# action 3 + k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
-# k=0 means "pass"
-ACTION_AUCTION_BID_BASE = 3
-AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS
-# Auctioneer decision
-ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END
-ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
-# Cow trade: choose opponent (2 opponents in 3-player game)
-ACTION_COW_CHOOSE_OPP_BASE = ACTION_AUCTIONEER_BUY + 1
+
+# Cow trade: choose opponent
+ACTION_COW_CHOOSE_OPP_BASE = ACTION_START_AUCTION + 1
 ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + N_PLAYERS - 1
+
+# Auction bidding (non-auctioneer):
+# action k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
+# k=0 means "pass"
+ACTION_AUCTION_BID_BASE = ACTION_COW_CHOOSE_OPP_END + 1
+AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS - 1
+
+# Auctioneer decision
+ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END + 1
+ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
+
 # Cow trade: choose animal type (0..N_ANIMALS-1)
-ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_COW_CHOOSE_OPP_END
-ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS
+ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1
+ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
+
 # Cow trade: A's offer amount
-# action 80 + k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
-ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END
-ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS
+# action k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
+ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
+ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
 
 # Cow trade: B's response
-ACTION_COW_RESP_ACCEPT = ACTION_COW_OFFER_END
+#ACTION_COW_RESP_ACCEPT = ACTION_COW_OFFER_END + 1
 # action: counter-offer k * MONEY_STEP
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_RESP_ACCEPT + 1
-COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS
+ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
+COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
 
 N_ACTIONS = COW_RESP_COUNTER_END
