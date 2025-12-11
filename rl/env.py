@@ -12,6 +12,7 @@ from rl.rl_agent import RLAgent
 from tests.demo_game import RandomAgent
 
 
+
 class KuhhandelEnv(gym.Env):
 
     def __init__(self, num_players: int = 3):
@@ -33,8 +34,11 @@ class KuhhandelEnv(gym.Env):
 
             # per-player money histogram (flattened: N_PLAYERS * len(MONEY_VALUES))
             # also for now the agent knows the exact values the opponents have
-            "money": MultiDiscrete(
-                np.full(N_PLAYERS * len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
+            "money_own": MultiDiscrete(
+                np.full(len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
+            ),
+            "money_opponents": MultiDiscrete(
+                np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS, dtype=np.int64)
             ),
 
             # deck + donkeys
@@ -155,13 +159,19 @@ class KuhhandelEnv(gym.Env):
                 animals[flat_idx] = counts.get(animal_type, 0)
 
         # Flattened money array: [player0_value0, player0_value1, ..., player2_value5]
-        money = np.zeros(N_PLAYERS * len(MONEY_VALUES), dtype=np.int64)
+        money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
         for player_idx, player in enumerate(self.game.players):
-            histogram = player.get_money_histogram(MONEY_VALUES)
-            for value_idx, count in enumerate(histogram.values()):
-                flat_idx = player_idx * len(MONEY_VALUES) + value_idx
-                money[flat_idx] = count
-
+            if player_idx == self.rl_agent_id:
+                histogram = player.get_money_histogram(MONEY_VALUES)
+                for value_idx, count in enumerate(histogram.values()):
+                    flat_idx = player_idx * len(MONEY_VALUES) + value_idx
+                    money[flat_idx] = count
+        money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
+        for player_idx, player in enumerate(self.game.players):
+            if player_idx != self.rl_agent_id:
+                cards = len(player.money)
+                opponent_idx = player_idx - 1 #if player_idx > self.rl_agent_id else player_idx # obsolete since rl_agent_id is always 0
+                money_opponents[opponent_idx] = cards
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
 
@@ -169,7 +179,8 @@ class KuhhandelEnv(gym.Env):
             "game_phase": self.game.phase.value,
             "current_player": self.game.current_player_idx,
             "animals": animals,
-            "money": money,
+            "money_own": money,
+            "money_opponents": money_opponents,
             "deck_size": len(self.game.animal_deck),
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
