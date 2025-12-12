@@ -142,15 +142,31 @@ class KuhhandelEnv(gym.Env):
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
         
-        # Reward/penalty for cow trade outcomes
+        # Reward/penalty for cow trade outcomes based on economic efficiency
         if self.game.last_trade_result is not None:
             result = self.game.last_trade_result
+            animals_transferred = result.get("animals_transferred", 1)
+            money_paid = result.get("money_paid", 0)  # Money the winner paid
+            money_received = result.get("money_received", 0)  # Money the loser received
+            
             if result["winner_player_id"] == self.rl_agent_id:
-                # RL agent won the trade - reward based on animals gained
-                reward += 0.1 * result["animals_transferred"]
+                # RL agent won the trade (got animals)
+                # Base reward for winning + bonus for paying less
+                # Normalize by a reasonable max trade value (e.g., 500)
+                base_reward = 0.1 * animals_transferred
+                # Bonus: higher reward for paying less (efficient buying)
+                # If paid 0, get full bonus; if paid 500+, get no bonus
+                efficiency_bonus = 0.1 * max(0, (500 - money_paid) / 500)
+                reward += base_reward + efficiency_bonus
+                
             elif result["loser_player_id"] == self.rl_agent_id:
-                # RL agent lost the trade - penalty
-                reward -= 0.1 * result["animals_transferred"]
+                # RL agent lost the trade (gave up animals but got money)
+                # Base penalty for losing animals
+                base_penalty = -0.1 * animals_transferred
+                # Compensation: higher reward for receiving more money (good sale)
+                # If received 500+, can offset the penalty entirely
+                money_compensation = 0.15 * min(1.0, money_received / 500)
+                reward += base_penalty + money_compensation
         
         if not terminated:
             return reward
