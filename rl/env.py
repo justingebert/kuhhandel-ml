@@ -2,7 +2,7 @@ from typing import Optional, List
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Dict, Discrete, MultiDiscrete
+from gymnasium.spaces import Dict, Discrete, MultiDiscrete, Box
 
 from gameengine import AnimalType, MoneyDeck
 from gameengine.agent import Agent
@@ -12,31 +12,37 @@ from rl.rl_agent import RLAgent
 from tests.demo_game import RandomAgent
 
 
-
 class KuhhandelEnv(gym.Env):
 
-    def __init__(self, num_players: int = 3):
+    def __init__(self, num_players: int = 3, opponent_generator=None):
         super().__init__()
 
         self.num_players = num_players
+        self.opponent_generator = opponent_generator
         self.action_space = Discrete(N_ACTIONS)
 
-        # broken down observation space for first runs
-        # Note: MultiDiscrete needs flattened 1D arrays
+        # Observation Space Refactoring:
+        # Large integer values (money) are now continuous normalized floats (Box).
+        # This prevents huge embedding layers and improves stability.
+        
         self.observation_space = Dict({
             "game_phase": Discrete(len(GamePhase)),
             "current_player": Discrete(N_PLAYERS),
 
-            # per-player animals: 0..4 of each type (flattened: N_PLAYERS * N_ANIMALS)
+            # per-player animals: 0..4 (unchanged, small discrete is fine, or could be Box)
+            # keeping MultiDiscrete as it is categorical/count data.
             "animals": MultiDiscrete(
                 np.full(N_PLAYERS * N_ANIMALS, 5, dtype=np.int64)
             ),
 
-            # per-player money histogram (flattened: N_PLAYERS * len(MONEY_VALUES))
-            # also for now the agent knows the exact values the opponents have
+            # Money: Flattened arrays. 
+            # OWN money: specific card counts.
             "money_own": MultiDiscrete(
                 np.full(len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
             ),
+            
+            # OPPONENT money: Total count (small integer 0..30?). 
+            # Keeping MultiDiscrete is fine.
             "money_opponents": MultiDiscrete(
                 np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS, dtype=np.int64)
             ),
@@ -45,16 +51,19 @@ class KuhhandelEnv(gym.Env):
             "deck_size": Discrete(41),
             "donkeys_revealed": Discrete(5),
 
-            # auction info
-            "auction_animal_type": Discrete(N_ANIMALS + 1),  # 0..N_ANIMALS-1, N_ANIMALS = none
-            "auction_high_bid": Discrete(MAX_MONEY + 1),  # 0..MAX_MONEY
-
-            # cow trade info
-            "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
+            # Auction Info:
+            "auction_animal_type": Discrete(N_ANIMALS + 1),
+            # High Bid: Money value -> Box [0, 1]
+            "auction_high_bid": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            
+            # Cow Trade Info:
+            "trade_initiator": Discrete(N_PLAYERS + 1),
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
-            "trade_offer_value": Discrete(MAX_MONEY + 1),
-            "trade_counter_offer_value": Discrete(MAX_MONEY + 1), #this is not known information but will be used for first model - might remove later
+            
+            # Offers: Money values -> Box [0, 1]
+            "trade_offer_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            "trade_counter_offer_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
         })
 
         self.game: Optional[Game] = None
@@ -73,10 +82,16 @@ class KuhhandelEnv(gym.Env):
 
         self.agents = []
         # RL agent at position 0
-        self.agents.append(RLAgent("RL_Agent", self))
-        # Random agents for opponents
-        for i in range(1, self.num_players):
-            self.agents.append(RandomAgent(f"Random_{i}"))
+        self.agents.append(RLAgent("RL_Learner", self))
+        
+        # Dynamic opponents
+        if self.opponent_generator:
+            others = self.opponent_generator(self.num_players - 1)
+            self.agents.extend(others)
+        else:
+            # Fallback: Random agents for opponents
+            for i in range(1, self.num_players):
+                self.agents.append(RandomAgent(f"Random_{i}"))
 
         self.controller = GameController(self.game, self.agents)
 
@@ -147,67 +162,91 @@ class KuhhandelEnv(gym.Env):
         return 0.0
 
 
-    def _get_observation(self) -> dict:
+    def get_observation_for_player(self, player_id: int) -> dict:
+        """
+        Generate observation from the perspective of player_id.
+        ROTATION: The observation is rotated so that player_id is seen as 'index 0'.
+        """
         all_animal_types = AnimalType.get_all_types()
 
-        # Flattened animals array: [player0_animal0, player0_animal1, ..., player2_animal9]
+        def rotate_idx(idx):
+            return (idx - player_id) % self.num_players
+
+        # Animals
         animals = np.zeros(N_PLAYERS * N_ANIMALS, dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
+        for p_idx, player in enumerate(self.game.players):
+            rel_idx = rotate_idx(p_idx)
             counts = player.get_animal_counts()
             for animal_idx, animal_type in enumerate(all_animal_types):
-                flat_idx = player_idx * N_ANIMALS + animal_idx
+                flat_idx = rel_idx * N_ANIMALS + animal_idx
                 animals[flat_idx] = counts.get(animal_type, 0)
 
-        # Flattened money array: [player0_value0, player0_value1, ..., player2_value5]
+        # Money Own
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
-            if player_idx == self.rl_agent_id:
-                histogram = player.get_money_histogram(MONEY_VALUES)
-                for value_idx, count in enumerate(histogram.values()):
-                    flat_idx = player_idx * len(MONEY_VALUES) + value_idx
-                    money[flat_idx] = count
+        observer_player = self.game.players[player_id]
+        histogram = observer_player.get_money_histogram(MONEY_VALUES)
+        for value_idx, count in enumerate(histogram.values()):
+             money[value_idx] = count
+        
+        # Money Opponents
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
-            if player_idx != self.rl_agent_id:
-                cards = len(player.money)
-                opponent_idx = player_idx - 1 #if player_idx > self.rl_agent_id else player_idx # obsolete since rl_agent_id is always 0
-                money_opponents[opponent_idx] = cards
+        for offset in range(1, self.num_players):
+            target_abs_idx = (player_id + offset) % self.num_players
+            target_player = self.game.players[target_abs_idx]
+            money_opponents[offset - 1] = len(target_player.money)
+
+        # Rotated IDs
+        curr_player_rel = rotate_idx(self.game.current_player_idx)
+        
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
+        
+        trade_initiator_rel = rotate_idx(self.game.trade_initiator) if self.game.trade_initiator is not None else N_PLAYERS
+        trade_target_rel = rotate_idx(self.game.trade_target) if self.game.trade_target is not None else N_PLAYERS
+
+        # Continuous Value Normalization
+        def normalize(val):
+            return np.array([float(val) / MAX_MONEY], dtype=np.float32)
+
+        auction_high_bid = self.game.auction_high_bid or 0
+        trade_offer = self.game.trade_offer or 0
+        trade_counter = self.game.trade_counter_offer or 0
 
         observation = {
             "game_phase": self.game.phase.value,
-            "current_player": self.game.current_player_idx,
+            "current_player": curr_player_rel,
             "animals": animals,
             "money_own": money,
             "money_opponents": money_opponents,
             "deck_size": len(self.game.animal_deck),
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
-            "auction_high_bid": self.game.auction_high_bid or 0,
-            "trade_initiator": self.game.trade_initiator or N_PLAYERS,
-            "trade_target": self.game.trade_target or N_PLAYERS,
+            "auction_high_bid": normalize(auction_high_bid),
+            "trade_initiator": trade_initiator_rel,
+            "trade_target": trade_target_rel,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_value": self.game.trade_offer or 0,
-            "trade_counter_offer_value": self.game.trade_counter_offer or 0,
+            "trade_offer_value": normalize(trade_offer),
+            "trade_counter_offer_value": normalize(trade_counter),
         }
 
         return observation
 
-    def get_action_mask(self) -> np.ndarray:
+    def _get_observation(self) -> dict:
+        return self.get_observation_for_player(self.rl_agent_id)
+
+    def get_action_mask_for_player(self, player_id: int) -> np.ndarray:
         """
-        Return a binary mask of valid actions.
-        1 = action is valid, 0 = action is invalid.
+        Return a binary mask of valid actions for specific player.
         """
         from gameengine.actions import ActionType
 
         mask = np.zeros(N_ACTIONS, dtype=np.int8)
 
-        # Get valid actions from the game for the RL agent
-        valid_actions = self.game.get_valid_actions(self.rl_agent_id)
+        # Get valid actions from the game for the player
+        valid_actions = self.game.get_valid_actions(player_id)
 
         # Get player's total money for constraining bids/offers
-        player_money = self.game.players[self.rl_agent_id].get_total_money()
+        player_money = self.game.players[player_id].get_total_money()
         max_bid_level = player_money // MONEY_STEP
 
         # Get current highest bid for auction constraints
@@ -219,20 +258,15 @@ class KuhhandelEnv(gym.Env):
                 mask[ACTION_START_AUCTION] = 1
 
             elif action.type == ActionType.COW_TRADE_CHOOSE_OPPONENT:
-                # Map opponent ID to action index
                 target_id = action.target_id
                 action_idx = ACTION_COW_CHOOSE_OPP_BASE + target_id
                 if ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
                     mask[action_idx] = 1
 
             elif action.type == ActionType.AUCTION_PASS:
-                # Pass is always valid during bidding
                 mask[ACTION_AUCTION_BID_BASE] = 1
 
             elif action.type == ActionType.AUCTION_BID:
-                # Only enable bids that are:
-                # 1. Higher than current highest bid
-                # 2. Within player's money
                 for bid_level in range(min_bid_level, max_bid_level + 1):
                     action_idx = ACTION_AUCTION_BID_BASE + bid_level
                     if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
@@ -245,27 +279,34 @@ class KuhhandelEnv(gym.Env):
                 mask[ACTION_AUCTIONEER_BUY] = 1
 
             elif action.type == ActionType.COW_TRADE_CHOOSE_ANIMAL:
-                # Map animal type to action index
                 animal_idx = AnimalType.get_all_types().index(action.animal_type)
                 action_idx = ACTION_COW_CHOOSE_ANIMAL_BASE + animal_idx
                 if ACTION_COW_CHOOSE_ANIMAL_BASE <= action_idx <= ACTION_COW_CHOOSE_ANIMAL_END:
                     mask[action_idx] = 1
 
             elif action.type == ActionType.COW_TRADE_OFFER:
-                # Only enable offers within player's money (0 to max_bid_level)
                 for offer_level in range(0, max_bid_level + 1):
                     action_idx = ACTION_COW_OFFER_BASE + offer_level
                     if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.COUNTER_OFFER:
-                # Only enable counter offers within player's money (0 to max_bid_level)
                 for counter_level in range(0, max_bid_level + 1):
                     action_idx = ACTION_COW_RESP_COUNTER_BASE + counter_level
                     if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
                         mask[action_idx] = 1
-
+        
+        # SAFETY CHECK to prevent NaNs/Simplex Errors
+        if np.sum(mask) == 0:
+            if self.game.phase == GamePhase.AUCTION_BIDDING:
+                mask[ACTION_AUCTION_BID_BASE] = 1 # Pass
+            else:
+                mask[0] = 1 # Default
+                
         return mask
+
+    def get_action_mask(self) -> np.ndarray:
+        return self.get_action_mask_for_player(self.rl_agent_id)
 
 
 # ----- GAME CONSTANTS -----
