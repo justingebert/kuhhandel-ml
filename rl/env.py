@@ -60,10 +60,8 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": Discrete(N_PLAYERS + 1),
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
-            
-            # Offers: Money values -> Box [0, 1]
-            "trade_offer_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
-            "trade_counter_offer_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            # Card counts are visible, exact values are hidden
+            "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
         })
 
         self.game: Optional[Game] = None
@@ -201,17 +199,13 @@ class KuhhandelEnv(gym.Env):
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
         
-        trade_initiator_rel = rotate_idx(self.game.trade_initiator) if self.game.trade_initiator is not None else N_PLAYERS
-        trade_target_rel = rotate_idx(self.game.trade_target) if self.game.trade_target is not None else N_PLAYERS
-
-        # Continuous Value Normalization
-        def normalize(val):
-            return np.array([float(val) / MAX_MONEY], dtype=np.float32)
-
-        auction_high_bid = self.game.auction_high_bid or 0
-        trade_offer = self.game.trade_offer or 0
-        trade_counter = self.game.trade_counter_offer or 0
-
+        # Determine card counts based on who made the offer
+        trade_offer_card_count = 0
+        
+        if self.game.trade_initiator is not None:
+            # Card counts are always visible
+            trade_offer_card_count = self.game.trade_offer_card_count
+            
         observation = {
             "game_phase": self.game.phase.value,
             "current_player": curr_player_rel,
@@ -221,12 +215,11 @@ class KuhhandelEnv(gym.Env):
             "deck_size": len(self.game.animal_deck),
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
-            "auction_high_bid": normalize(auction_high_bid),
-            "trade_initiator": trade_initiator_rel,
-            "trade_target": trade_target_rel,
+            "auction_high_bid": self.game.auction_high_bid or 0,
+            "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
+            "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_value": normalize(trade_offer),
-            "trade_counter_offer_value": normalize(trade_counter),
+            "trade_offer_card_count": trade_offer_card_count,
         }
 
         return observation

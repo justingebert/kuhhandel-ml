@@ -62,6 +62,7 @@ class Game:
         self.trade_animal_type: Optional[AnimalType] = None
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
+        self.trade_offer_card_count: int = 0
 
         # Donkey counter for additional money distribution
         self.donkeys_revealed = 0
@@ -420,6 +421,13 @@ class Game:
 
     def choose_cow_trade_offer(self, amount: int):
         self.trade_offer = amount
+        # Calculate how many cards would be used for this offer
+        if amount > 0:
+            initiator = self.players[self.trade_initiator]
+            offer_cards = initiator.select_payment_cards(amount)
+            self.trade_offer_card_count = len(offer_cards) if offer_cards else 0
+        else:
+            self.trade_offer_card_count = 0
         self.phase = GamePhase.COW_TRADE_RESPONSE
 
     def choose_cow_trade_counter_offer(self, amount: int):
@@ -509,6 +517,7 @@ class Game:
         self.trade_animal_type = None
         self.trade_offer = 0
         self.trade_counter_offer = 0
+        self.trade_offer_card_count = 0
         self._next_turn()
 
     def _next_turn(self):
