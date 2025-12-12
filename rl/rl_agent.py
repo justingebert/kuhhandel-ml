@@ -78,8 +78,4 @@ class RLAgent(Agent):
                 counter_amount = counter_level * MONEY_STEP
                 return Actions.counter_offer(counter_amount)
         
-        # Fallback: return first valid action if decoding fails
-        if valid_actions:
-            return valid_actions[0]
-        
         raise ValueError(f"Cannot decode action {action_idx} for phase {game.phase}")

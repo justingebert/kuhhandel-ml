@@ -12,7 +12,6 @@ from rl.rl_agent import RLAgent
 from tests.demo_game import RandomAgent
 
 
-
 class KuhhandelEnv(gym.Env):
 
     def __init__(self, num_players: int = 3):
@@ -32,11 +31,11 @@ class KuhhandelEnv(gym.Env):
                 np.full(N_PLAYERS * N_ANIMALS, 5, dtype=np.int64)
             ),
 
-            # per-player money histogram (flattened: N_PLAYERS * len(MONEY_VALUES))
-            # also for now the agent knows the exact values the opponents have
+            # own money histogram
             "money_own": MultiDiscrete(
                 np.full(len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
             ),
+
             "money_opponents": MultiDiscrete(
                 np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS, dtype=np.int64)
             ),
@@ -145,25 +144,18 @@ class KuhhandelEnv(gym.Env):
         # Reward/penalty for cow trade outcomes based on economic efficiency
         if self.game.last_trade_result is not None:
             result = self.game.last_trade_result
-            animals_transferred = result.get("animals_transferred", 1)
-            money_paid = result.get("money_paid", 0)  # Money the winner paid
-            money_received = result.get("money_received", 0)  # Money the loser received
+            animals_transferred = result.get("animals_transferred")
+            money_paid = result.get("money_paid")
+            money_received = result.get("money_received")
             
             if result["winner_player_id"] == self.rl_agent_id:
-                # RL agent won the trade (got animals)
-                # Base reward for winning + bonus for paying less
-                # Normalize by a reasonable max trade value (e.g., 500)
                 base_reward = 0.1 * animals_transferred
-                # Bonus: higher reward for paying less (efficient buying)
-                # If paid 0, get full bonus; if paid 500+, get no bonus
+                # If paid 0, get full bonus; if paid 500+, get no bonus - normalized
                 efficiency_bonus = 0.1 * max(0, (500 - money_paid) / 500)
                 reward += base_reward + efficiency_bonus
                 
             elif result["loser_player_id"] == self.rl_agent_id:
-                # RL agent lost the trade (gave up animals but got money)
-                # Base penalty for losing animals
                 base_penalty = -0.1 * animals_transferred
-                # Compensation: higher reward for receiving more money (good sale)
                 # If received 500+, can offset the penalty entirely
                 money_compensation = 0.15 * min(1.0, money_received / 500)
                 reward += base_penalty + money_compensation
@@ -175,6 +167,7 @@ class KuhhandelEnv(gym.Env):
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
             return reward + 1.0
+
         return reward
 
 
@@ -189,7 +182,6 @@ class KuhhandelEnv(gym.Env):
                 flat_idx = player_idx * N_ANIMALS + animal_idx
                 animals[flat_idx] = counts.get(animal_type, 0)
 
-        # Flattened money array: [player0_value0, player0_value1, ..., player2_value5]
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
         for player_idx, player in enumerate(self.game.players):
             if player_idx == self.rl_agent_id:
@@ -197,22 +189,17 @@ class KuhhandelEnv(gym.Env):
                 for value_idx, count in enumerate(histogram.values()):
                     flat_idx = player_idx * len(MONEY_VALUES) + value_idx
                     money[flat_idx] = count
+
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
         for player_idx, player in enumerate(self.game.players):
             if player_idx != self.rl_agent_id:
                 cards = len(player.money)
-                opponent_idx = player_idx - 1 #if player_idx > self.rl_agent_id else player_idx # obsolete since rl_agent_id is always 0
+                opponent_idx = player_idx - 1
                 money_opponents[opponent_idx] = cards
+
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
-        
-        # Determine card counts based on who made the offer
-        trade_offer_card_count = 0
-        
-        if self.game.trade_initiator is not None:
-            # Card counts are always visible
-            trade_offer_card_count = self.game.trade_offer_card_count
-            
+
         observation = {
             "game_phase": self.game.phase.value,
             "current_player": self.game.current_player_idx,
@@ -226,7 +213,7 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_card_count": trade_offer_card_count,
+            "trade_offer_card_count": self.game.trade_offer_card_count,
         }
 
         return observation
