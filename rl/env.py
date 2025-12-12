@@ -53,8 +53,9 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
-            "trade_offer_value": Discrete(MAX_MONEY + 1),
-            "trade_counter_offer_value": Discrete(MAX_MONEY + 1), #this is not known information but will be used for first model - might remove later
+            # Card counts are visible, exact values are hidden
+            "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
+            "trade_counter_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no counter
         })
 
         self.game: Optional[Game] = None
@@ -174,7 +175,14 @@ class KuhhandelEnv(gym.Env):
                 money_opponents[opponent_idx] = cards
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
-
+        
+        # Determine card counts based on who made the offer
+        trade_offer_card_count = 0
+        
+        if self.game.trade_initiator is not None:
+            # Card counts are always visible
+            trade_offer_card_count = self.game.trade_offer_card_count
+            
         observation = {
             "game_phase": self.game.phase.value,
             "current_player": self.game.current_player_idx,
@@ -185,11 +193,10 @@ class KuhhandelEnv(gym.Env):
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
             "auction_high_bid": self.game.auction_high_bid or 0,
-            "trade_initiator": self.game.trade_initiator or N_PLAYERS,
-            "trade_target": self.game.trade_target or N_PLAYERS,
+            "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
+            "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_value": self.game.trade_offer or 0,
-            "trade_counter_offer_value": self.game.trade_counter_offer or 0,
+            "trade_offer_card_count": trade_offer_card_count,
         }
 
         return observation
