@@ -12,12 +12,14 @@ class ModelAgent(Agent):
     An agent that uses a trained SB3 MaskablePPO model to make decisions.
     Supports rotated observations for self-play.
     """
-    def __init__(self, name: str, model_path: str, env: KuhhandelEnv):
+    def __init__(self, name: str, model_path: str, env: KuhhandelEnv, model_instance=None):
         super().__init__(name)
         self.env = env
-        # Load the model
-        # Note: We need to handle cpu/gpu device if necessary, usually auto is fine
-        self.model = MaskablePPO.load(model_path)
+        # Load the model or use cached instance
+        if model_instance:
+            self.model = model_instance
+        else:
+            self.model = MaskablePPO.load(model_path)
     
     def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
         # 1. Get observation for THIS player (rotated so self is index 0)
@@ -32,25 +34,6 @@ class ModelAgent(Agent):
         action_int, _ = self.model.predict(obs, action_masks=action_mask, deterministic=True)
         
         # 4. Decode action
-        # NOTE: If we used rotated observations, the action output might strictly refer to 'Relative' targets
-        # if the model learned relative strategies.
-        # However, the current Env structure keeps Actions ABSOLUTE.
-        # So we just decode the int to GameAction using the standard decoder.
-        # Ideally, we should check if the chosen action is actually valid.
-        # Since we used the mask, it SHOULD be valid.
-        
-        # We can use the Env's decoder (RLAgent logic)
-        # But RLAgent logic is in RLAgent class. We can duplicate it or use a helper.
-        # To avoid code duplication, we can instanciate a dummy RLAgent or move decode logic to Env.
-        # For now, let's just use RLAgent's method by creating a temporary instance or static method?
-        # RLAgent.decode_action is an instance method.
-        # Let's just copy the decode logic for now or import it if decoupled.
-        
-        from rl.rl_agent import RLAgent
-        # Create a temporary agent just to use decode (cheap hack, but effective without refactoring rl_agent)
-        # OR better: Refactor rl_agent to make decode_action static.
-        # I'll just copy the logic effectively by using the helper I'll create here.
-        
         return self._decode_action(action_int, game)
         
         

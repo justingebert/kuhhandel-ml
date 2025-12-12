@@ -1,0 +1,4 @@
+- [ ] Enable Model Instantiation in `ModelAgent` <!-- id: 0 -->
+- [ ] Update `KuhhandelEnv.reset` to pass self to generator <!-- id: 1 -->
+- [ ] Implement `MODEL_CACHE` and Vectorization in `train_selfplay.py` <!-- id: 2 -->
+- [ ] Verify training loop runs with vectorization <!-- id: 3 -->
