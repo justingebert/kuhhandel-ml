@@ -99,6 +99,9 @@ class KuhhandelEnv(gym.Env):
         """
         self.episode_step += 1
 
+        # Clear last trade result from previous step
+        self.game.last_trade_result = None
+
         # Store the action in the RL agent so it can be used when controller asks
         rl_agent = self.agents[self.rl_agent_id]
         rl_agent.last_action_int = action
@@ -137,14 +140,26 @@ class KuhhandelEnv(gym.Env):
 
 
     def _compute_reward(self, terminated: bool) -> float:
+        reward = 0.0
+        
+        # Reward/penalty for cow trade outcomes
+        if self.game.last_trade_result is not None:
+            result = self.game.last_trade_result
+            if result["winner_player_id"] == self.rl_agent_id:
+                # RL agent won the trade - reward based on animals gained
+                reward += 0.1 * result["animals_transferred"]
+            elif result["loser_player_id"] == self.rl_agent_id:
+                # RL agent lost the trade - penalty
+                reward -= 0.1 * result["animals_transferred"]
+        
         if not terminated:
-            return 0.0
+            return reward
 
-        #end scores since the game is terminated
+        # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return 1.0
-        return 0.0
+            return reward + 1.0
+        return reward
 
 
     def _get_observation(self) -> dict:

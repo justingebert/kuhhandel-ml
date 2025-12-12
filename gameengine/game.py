@@ -64,6 +64,10 @@ class Game:
         self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
 
+        # Track last completed trade result for reward calculation
+        # (winner_player_id, animals_gained, offer_difference)
+        self.last_trade_result: Optional[Dict[str, Any]] = None
+
         # Donkey counter for additional money distribution
         self.donkeys_revealed = 0
 
@@ -360,6 +364,7 @@ class Game:
         self.auction_high_bid = 0
         self.auction_current_bidder_idx = None
         self.auction_bidders_passed.clear()
+        #self.auction_offer_difference = 0
         self._next_turn()
 
     def get_current_decision_player(self) -> int:
@@ -482,9 +487,11 @@ class Game:
         target_count = target.get_animal_count(self.trade_animal_type)
         trade_amount = min(initiator_count, target_count)
 
+        #cow_trade_difference_offers = (initiator_count - target_count)
         # Determine winner and transfer animals
         animals = []
         winner = "initiator"  # Default in case of tie
+        winner_player_id = self.trade_initiator
         if self.trade_offer >= self.trade_counter_offer:
             # Initiator wins - takes trade_amount animals from target
             # TIE -> initiator wins
@@ -497,6 +504,17 @@ class Game:
             for animal in animals:
                 target.add_animal(animal)
             winner = "target"
+            winner_player_id = self.trade_target
+
+        # Store trade result for reward calculation (persists after _end_cow_trade)
+        self.last_trade_result = {
+            "winner_player_id": winner_player_id,
+            "loser_player_id": self.trade_target if winner == "initiator" else self.trade_initiator,
+            "animals_transferred": len(animals),
+            "offer": self.trade_offer,
+            "counter_offer": self.trade_counter_offer,
+            "net_payment": self.trade_offer - self.trade_counter_offer,  # positive = initiator paid more
+        }
 
         self._log_action("resolve_trade", {
             "winner": winner,
