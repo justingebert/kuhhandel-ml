@@ -24,9 +24,9 @@ SELFPLAY_DIR = "models/selfplay_pool_v2"
 LATEST_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_v2_latest"
 FINAL_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_v2_final"
 
-N_GENERATIONS = 3
-STEPS_PER_GEN = 10000  # Increased steps because we are faster now!
-N_ENVS = 16  # Number of parallel environments (target 8-16 depending on CPU)
+N_GENERATIONS = 10
+STEPS_PER_GEN = 20000  
+N_ENVS = 16  # cores
 
 # Opponent Distribution
 PROB_RANDOM = 0
