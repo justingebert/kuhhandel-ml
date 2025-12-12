@@ -215,7 +215,7 @@ class KuhhandelEnv(gym.Env):
             "deck_size": len(self.game.animal_deck),
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
-            "auction_high_bid": self.game.auction_high_bid or 0,
+            "auction_high_bid": np.array([(self.game.auction_high_bid or 0) / MAX_MONEY], dtype=np.float32),
             "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
