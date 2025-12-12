@@ -55,7 +55,6 @@ class KuhhandelEnv(gym.Env):
             "trade_animal_type": Discrete(N_ANIMALS + 1),
             # Card counts are visible, exact values are hidden
             "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
-            "trade_counter_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no counter
         })
 
         self.game: Optional[Game] = None
