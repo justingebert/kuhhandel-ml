@@ -70,6 +70,7 @@ GameAction = Union[
     StartAuctionAction,
     AuctionBidAction,
     AuctionPassAction,
+    PassAsAuctioneerAction,
     BuyAsAuctioneerAction,
     CowTradeChooseOpponentAction,
     CowTradeChooseAnimalAction,

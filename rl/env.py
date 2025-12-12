@@ -4,13 +4,13 @@ import gymnasium as gym
 import numpy as np
 from gymnasium.spaces import Dict, Discrete, MultiDiscrete
 
-from gameengine import AnimalType, MoneyDeck, GamePhase
-from gameengine.actions import Actions
+from gameengine import AnimalType, MoneyDeck
+from gameengine.actions import Actions, GameAction
 from gameengine.agent import Agent
 from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
-from rl.rl_agent import RLAgent
 from rl.random_agent import RandomAgent
+from rl.rl_agent import RLAgent
 
 
 class KuhhandelEnv(gym.Env):
@@ -146,19 +146,18 @@ class KuhhandelEnv(gym.Env):
         if self.game.last_trade_result is not None:
             result = self.game.last_trade_result
             animals_transferred = result.get("animals_transferred")
-            money_paid = result.get("money_paid")
-            money_received = result.get("money_received")
+            net_payment = result.get("net_payment")
             
             if result["winner_player_id"] == self.rl_agent_id:
                 base_reward = 0.1 * animals_transferred
                 # If paid 0, get full bonus; if paid 500+, get no bonus - normalized
-                efficiency_bonus = 0.1 * max(0, (500 - money_paid) / 500)
+                efficiency_bonus = 0.1 * max(0, (500 - net_payment) / 500)
                 reward += base_reward + efficiency_bonus
                 
             elif result["loser_player_id"] == self.rl_agent_id:
                 base_penalty = -0.1 * animals_transferred
                 # If received 500+, can offset the penalty entirely
-                money_compensation = 0.15 * min(1.0, money_received / 500)
+                money_compensation = 0.15 * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
         
         if not terminated:
@@ -293,52 +292,6 @@ class KuhhandelEnv(gym.Env):
         return mask
 
 
-# ----- GAME CONSTANTS -----
-N_PLAYERS = 3
-N_ANIMALS = len(AnimalType.get_all_types())  # 10
-MONEY_VALUES = sorted(MoneyDeck.INITIAL_DISTRIBUTION.keys())
-
-max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
-
-# offers/bids as multiples of 10 up to MAX_MONEY
-MONEY_STEP = 10
-MAX_MONEY = 940*5  # might adjust
-N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
-
-# ----- ACTION INDICES -----
-# Turn-level actions
-ACTION_START_AUCTION = 0
-
-# Cow trade: choose opponent
-ACTION_COW_CHOOSE_OPP_BASE = ACTION_START_AUCTION + 1
-ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + N_PLAYERS - 1
-
-# Auction bidding (non-auctioneer):
-# action k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
-# k=0 means "pass"
-ACTION_AUCTION_BID_BASE = ACTION_COW_CHOOSE_OPP_END + 1
-AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS - 1
-
-# Auctioneer decision
-ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END + 1
-ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
-
-# Cow trade: choose animal type (0..N_ANIMALS-1)
-ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1
-ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
-
-# Cow trade: A's offer amount
-# action k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
-ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
-ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
-
-# Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
-COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
-
-N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
-
-
 def decode_action(action_idx: int, game: Game) -> GameAction:
     """Decode integer action index to GameAction."""
     # Import action constants from env
@@ -392,3 +345,50 @@ def decode_action(action_idx: int, game: Game) -> GameAction:
             return Actions.counter_offer(counter_amount)
 
     raise ValueError(f"Cannot decode action {action_idx} for phase {game.phase}")
+
+
+# ----- GAME CONSTANTS -----
+N_PLAYERS = 3
+N_ANIMALS = len(AnimalType.get_all_types())  # 10
+MONEY_VALUES = sorted(MoneyDeck.INITIAL_DISTRIBUTION.keys())
+
+max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
+
+# offers/bids as multiples of 10 up to MAX_MONEY
+MONEY_STEP = 10
+MAX_MONEY = 940*5  # might adjust
+N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
+
+# ----- ACTION INDICES -----
+# Turn-level actions
+ACTION_START_AUCTION = 0
+
+# Cow trade: choose opponent
+ACTION_COW_CHOOSE_OPP_BASE = ACTION_START_AUCTION + 1
+ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + N_PLAYERS - 1
+
+# Auction bidding (non-auctioneer):
+# action k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
+# k=0 means "pass"
+ACTION_AUCTION_BID_BASE = ACTION_COW_CHOOSE_OPP_END + 1
+AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS - 1
+
+# Auctioneer decision
+ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END + 1
+ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
+
+# Cow trade: choose animal type (0..N_ANIMALS-1)
+ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1
+ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
+
+# Cow trade: A's offer amount
+# action k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
+ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
+ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
+
+# Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
+ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
+COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
+
+N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
+

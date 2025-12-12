@@ -509,9 +509,7 @@ class Game:
             "winner_player_id": winner_player_id,
             "loser_player_id": self.trade_target if winner == "initiator" else self.trade_initiator,
             "animals_transferred": len(animals),
-            "offer": self.trade_offer,
-            "counter_offer": self.trade_counter_offer,
-            "net_payment": self.trade_offer - self.trade_counter_offer,  # positive = initiator paid more
+            "net_payment": abs(self.trade_offer - self.trade_counter_offer),  # positive = initiator paid more
         }
 
         self._log_action("resolve_trade", {

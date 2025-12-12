@@ -5,7 +5,6 @@ import gymnasium
 from gameengine import Game
 from gameengine.actions import GameAction
 from gameengine.agent import Agent
-from rl.env import decode_action
 
 
 class RLAgent(Agent):
@@ -19,6 +18,7 @@ class RLAgent(Agent):
 
     def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
         """Convert stored integer action to GameAction based on current game phase."""
+        from rl.env import decode_action
         action_idx = self.last_action_int
         decoded_action = decode_action(action_idx, game)
         return decoded_action
