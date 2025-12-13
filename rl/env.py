@@ -84,7 +84,7 @@ class KuhhandelEnv(gym.Env):
         
         # Dynamic opponents
         if self.opponent_generator:
-            others = self.opponent_generator(self.num_players - 1, self)
+            others = self.opponent_generator(self, self.num_players - 1)
             self.agents.extend(others)
         else:
             # Fallback: Random agents for opponents
