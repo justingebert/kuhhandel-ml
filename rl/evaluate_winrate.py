@@ -125,8 +125,9 @@ if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--main", type=str, required=True, help="Path to main model zip")
-    parser.add_argument("--opp", type=str, default="random", help="'random' or path to opponent model zip")
+    # parser.add_argument("--main", type=str, required=True, help="Path to main model zip")
+    parser.add_argument("--main", type=str, default=r"models\kuhhandel_ppo_v2_latest.zip", help="Path to main model zip") #standart latest model
+    parser.add_argument("--opp", type=str, default="random", help="'random' or path to opponent model zip") #standart random agents
     parser.add_argument("--n", type=int, default=100, help="Number of games")
     
     args = parser.parse_args()
