@@ -180,6 +180,6 @@ cython_debug/
 
 .mdfiles/
 
-.logs/
+logs/
 
-.models/
+models/
