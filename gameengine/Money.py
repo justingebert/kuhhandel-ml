@@ -41,6 +41,8 @@ class MoneyDeck:
         50: 1
     }
 
+    AMOUNT_MONEYCARDS = sum(INITIAL_DISTRIBUTION.values())
+
     def __init__(self):
         self.cards: List[MoneyCard] = []
         self.next_id = 0
