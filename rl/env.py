@@ -15,14 +15,13 @@ from rl.rl_agent import RLAgent
 
 class KuhhandelEnv(gym.Env):
 
-    def __init__(self, num_players: int = 3):
+    def __init__(self, num_players: int = 3, opponent_generator=None):
         super().__init__()
 
         self.num_players = num_players
+        self.opponent_generator = opponent_generator
         self.action_space = Discrete(N_ACTIONS)
 
-        # broken down observation space for first runs
-        # Note: MultiDiscrete needs flattened 1D arrays
         self.observation_space = Dict({
             "game_phase": Discrete(len(GamePhase)),
             "current_player": Discrete(N_PLAYERS),
@@ -72,11 +71,15 @@ class KuhhandelEnv(gym.Env):
         self.game.setup()
 
         self.agents = []
-        # RL agent at position 0
-        self.agents.append(RLAgent("RL_Agent", self))
-        # Random agents for opponents
-        for i in range(1, self.num_players):
-            self.agents.append(RandomAgent(f"Random_{i}"))
+        self.agents.append(RLAgent("RL_Learner", self))
+
+        if self.opponent_generator:
+            others = self.opponent_generator(self, self.num_players - 1)
+            self.agents.extend(others)
+        else:
+            # Fallback: Random agents for opponents
+            for i in range(1, self.num_players):
+                self.agents.append(RandomAgent(f"Random_{i}"))
 
         self.controller = GameController(self.game, self.agents)
 
@@ -141,25 +144,25 @@ class KuhhandelEnv(gym.Env):
 
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
-        
+
         # Reward/penalty for cow trade outcomes based on economic efficiency
         if self.game.last_trade_result is not None:
             result = self.game.last_trade_result
             animals_transferred = result.get("animals_transferred")
             net_payment = result.get("net_payment")
-            
+
             if result["winner_player_id"] == self.rl_agent_id:
                 base_reward = 0.1 * animals_transferred
                 # If paid 0, get full bonus; if paid 500+, get no bonus - normalized
                 efficiency_bonus = 0.1 * max(0, (500 - net_payment) / 500)
                 reward += base_reward + efficiency_bonus
-                
+
             elif result["loser_player_id"] == self.rl_agent_id:
                 base_penalty = -0.1 * animals_transferred
                 # If received 500+, can offset the penalty entirely
                 money_compensation = 0.15 * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
-        
+
         if not terminated:
             return reward
 
@@ -171,7 +174,11 @@ class KuhhandelEnv(gym.Env):
         return reward
 
 
-    def _get_observation(self) -> dict:
+    def get_observation_for_player(self, player_id: int) -> dict:
+        """
+        Generate observation from the perspective of player_id.
+        ROTATION: The observation is rotated so that player_id is seen as 'index 0'.
+        """
         all_animal_types = AnimalType.get_all_types()
 
         # Flattened animals array: [player0_animal0, player0_animal1, ..., player2_animal9]
@@ -183,16 +190,14 @@ class KuhhandelEnv(gym.Env):
                 animals[flat_idx] = counts.get(animal_type, 0)
 
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
-            if player_idx == self.rl_agent_id:
-                histogram = player.get_money_histogram(MONEY_VALUES)
-                for value_idx, count in enumerate(histogram.values()):
-                    flat_idx = player_idx * len(MONEY_VALUES) + value_idx
-                    money[flat_idx] = count
+        observer_player = self.game.players[player_id]
+        histogram = observer_player.get_money_histogram(MONEY_VALUES)
+        for value_idx, count in enumerate(histogram.values()):
+             money[value_idx] = count
 
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
         for player_idx, player in enumerate(self.game.players):
-            if player_idx != self.rl_agent_id:
+            if player_idx != player_id:
                 cards = len(player.money)
                 opponent_idx = player_idx - 1
                 money_opponents[opponent_idx] = cards
@@ -218,20 +223,23 @@ class KuhhandelEnv(gym.Env):
 
         return observation
 
-    def get_action_mask(self) -> np.ndarray:
+    def _get_observation(self) -> dict:
+        return self.get_observation_for_player(self.rl_agent_id)
+
+    def get_action_mask_for_player(self, player_id: int) -> np.ndarray:
         """
-        Return a binary mask of valid actions.
+        Return a binary mask of valid actions for specific player.
         1 = action is valid, 0 = action is invalid.
         """
         from gameengine.actions import ActionType
 
         mask = np.zeros(N_ACTIONS, dtype=np.int8)
 
-        # Get valid actions from the game for the RL agent
-        valid_actions = self.game.get_valid_actions(self.rl_agent_id)
+        # Get valid actions from the game for the player
+        valid_actions = self.game.get_valid_actions(player_id)
 
         # Get player's total money for constraining bids/offers
-        player_money = self.game.players[self.rl_agent_id].get_total_money()
+        player_money = self.game.players[player_id].get_total_money()
         max_bid_level = player_money // MONEY_STEP
 
         # Get current highest bid for auction constraints
@@ -291,60 +299,54 @@ class KuhhandelEnv(gym.Env):
 
         return mask
 
+    def get_action_mask(self) -> np.ndarray:
+        return self.get_action_mask_for_player(self.rl_agent_id)
 
-def decode_action(action_idx: int, game: Game) -> GameAction:
-    """Decode integer action index to GameAction."""
-    # Import action constants from env
-    from rl.env import (
-        ACTION_START_AUCTION, ACTION_COW_CHOOSE_OPP_BASE, ACTION_COW_CHOOSE_OPP_END,
-        ACTION_AUCTION_BID_BASE, AUCTION_BID_END, MONEY_STEP,
-        ACTION_AUCTIONEER_ACCEPT, ACTION_AUCTIONEER_BUY,
-        ACTION_COW_CHOOSE_ANIMAL_BASE, ACTION_COW_CHOOSE_ANIMAL_END,
-        ACTION_COW_OFFER_BASE, ACTION_COW_OFFER_END,
-        ACTION_COW_RESP_COUNTER_BASE, COW_RESP_COUNTER_END
-    )
+    @staticmethod
+    def decode_action(action_idx: int, game: Game) -> GameAction:
+        """Decode integer action index to GameAction."""
 
-    if game.phase == GamePhase.PLAYER_TURN_CHOICE:
-        if action_idx == ACTION_START_AUCTION:
-            return Actions.start_auction()
-        elif ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
-            opponent_offset = action_idx - ACTION_COW_CHOOSE_OPP_BASE
-            return Actions.cow_trade_choose_opponent(opponent_offset)
+        if game.phase == GamePhase.PLAYER_TURN_CHOICE:
+            if action_idx == ACTION_START_AUCTION:
+                return Actions.start_auction()
+            elif ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
+                opponent_offset = action_idx - ACTION_COW_CHOOSE_OPP_BASE
+                return Actions.cow_trade_choose_opponent(opponent_offset)
 
-    elif game.phase == GamePhase.AUCTION_BIDDING:
-        if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
-            bid_level = action_idx - ACTION_AUCTION_BID_BASE
-            if bid_level == 0:
-                return Actions.pass_action()
-            else:
-                bid_amount = bid_level * MONEY_STEP
-                return Actions.bid(bid_amount)
+        elif game.phase == GamePhase.AUCTION_BIDDING:
+            if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
+                bid_level = action_idx - ACTION_AUCTION_BID_BASE
+                if bid_level == 0:
+                    return Actions.pass_action()
+                else:
+                    bid_amount = bid_level * MONEY_STEP
+                    return Actions.bid(bid_amount)
 
-    elif game.phase == GamePhase.AUCTIONEER_DECISION:
-        if action_idx == ACTION_AUCTIONEER_ACCEPT:
-            return Actions.pass_as_auctioneer()
-        elif action_idx == ACTION_AUCTIONEER_BUY:
-            return Actions.buy_as_auctioneer()
+        elif game.phase == GamePhase.AUCTIONEER_DECISION:
+            if action_idx == ACTION_AUCTIONEER_ACCEPT:
+                return Actions.pass_as_auctioneer()
+            elif action_idx == ACTION_AUCTIONEER_BUY:
+                return Actions.buy_as_auctioneer()
 
-    elif game.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL:
-        if ACTION_COW_CHOOSE_ANIMAL_BASE <= action_idx <= ACTION_COW_CHOOSE_ANIMAL_END:
-            animal_idx = action_idx - ACTION_COW_CHOOSE_ANIMAL_BASE
-            animal_type = AnimalType.get_all_types()[animal_idx]
-            return Actions.cow_trade_choose_animal(animal_type)
+        elif game.phase == GamePhase.COW_TRADE_CHOOSE_ANIMAL:
+            if ACTION_COW_CHOOSE_ANIMAL_BASE <= action_idx <= ACTION_COW_CHOOSE_ANIMAL_END:
+                animal_idx = action_idx - ACTION_COW_CHOOSE_ANIMAL_BASE
+                animal_type = AnimalType.get_all_types()[animal_idx]
+                return Actions.cow_trade_choose_animal(animal_type)
 
-    elif game.phase == GamePhase.COW_TRADE_OFFER:
-        if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
-            offer_level = action_idx - ACTION_COW_OFFER_BASE
-            offer_amount = offer_level * MONEY_STEP
-            return Actions.cow_trade_offer(offer_amount)
+        elif game.phase == GamePhase.COW_TRADE_OFFER:
+            if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
+                offer_level = action_idx - ACTION_COW_OFFER_BASE
+                offer_amount = offer_level * MONEY_STEP
+                return Actions.cow_trade_offer(offer_amount)
 
-    elif game.phase == GamePhase.COW_TRADE_RESPONSE:
-        if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
-            counter_level = action_idx - ACTION_COW_RESP_COUNTER_BASE
-            counter_amount = counter_level * MONEY_STEP
-            return Actions.counter_offer(counter_amount)
+        elif game.phase == GamePhase.COW_TRADE_RESPONSE:
+            if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
+                counter_level = action_idx - ACTION_COW_RESP_COUNTER_BASE
+                counter_amount = counter_level * MONEY_STEP
+                return Actions.counter_offer(counter_amount)
 
-    raise ValueError(f"Cannot decode action {action_idx} for phase {game.phase}")
+        raise ValueError(f"Cannot decode action {action_idx} for phase {game.phase}")
 
 
 # ----- GAME CONSTANTS -----
@@ -391,4 +393,3 @@ ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
 COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
 
 N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
-

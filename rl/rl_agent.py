@@ -11,14 +11,12 @@ class RLAgent(Agent):
     """Agent wrapper for training - converts int actions to GameActions.
     """
 
-    def __init__(self, name: str, env: 'gymnasium.Env'):
+    def __init__(self, name: str, env: gymnasium.Env):
         super().__init__(name)
         self.env = env
         self.last_action_int: Optional[int] = None
 
     def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
         """Convert stored integer action to GameAction based on current game phase."""
-        from rl.env import decode_action
         action_idx = self.last_action_int
-        decoded_action = decode_action(action_idx, game)
-        return decoded_action
+        return self.env.decode_action(action_idx, game)
