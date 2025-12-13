@@ -62,6 +62,11 @@ class Game:
         self.trade_animal_type: Optional[AnimalType] = None
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
+        self.trade_offer_card_count: int = 0
+
+        # Track last completed trade result for reward calculation
+        # (winner_player_id, loser_player_id, animals_transferred, offer, counter_offer, net_payment)
+        self.last_trade_result: Optional[Dict[str, Any]] = None
 
         # Donkey counter for additional money distribution
         self.donkeys_revealed = 0
@@ -420,6 +425,13 @@ class Game:
 
     def choose_cow_trade_offer(self, amount: int):
         self.trade_offer = amount
+
+        # Set how many cards are layed down for the offer
+        if amount > 0:
+            initiator = self.players[self.trade_initiator]
+            offer_cards = initiator.select_payment_cards(amount)
+            self.trade_offer_card_count = len(offer_cards) if offer_cards else 0
+
         self.phase = GamePhase.COW_TRADE_RESPONSE
 
     def choose_cow_trade_counter_offer(self, amount: int):
@@ -477,6 +489,7 @@ class Game:
         # Determine winner and transfer animals
         animals = []
         winner = "initiator"  # Default in case of tie
+        winner_player_id = self.trade_initiator
         if self.trade_offer >= self.trade_counter_offer:
             # Initiator wins - takes trade_amount animals from target
             # TIE -> initiator wins
@@ -489,6 +502,15 @@ class Game:
             for animal in animals:
                 target.add_animal(animal)
             winner = "target"
+            winner_player_id = self.trade_target
+
+        # Store trade result for reward calculation (persists after _end_cow_trade)
+        self.last_trade_result = {
+            "winner_player_id": winner_player_id,
+            "loser_player_id": self.trade_target if winner == "initiator" else self.trade_initiator,
+            "animals_transferred": len(animals),
+            "net_payment": abs(self.trade_offer - self.trade_counter_offer),  # positive = initiator paid more
+        }
 
         self._log_action("resolve_trade", {
             "winner": winner,
@@ -509,6 +531,7 @@ class Game:
         self.trade_animal_type = None
         self.trade_offer = 0
         self.trade_counter_offer = 0
+        self.trade_offer_card_count = 0
         self._next_turn()
 
     def _next_turn(self):
