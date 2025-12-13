@@ -1,16 +1,17 @@
 from typing import Optional, List
 
+import gymnasium
+
 from gameengine import Game
 from gameengine.actions import GameAction
 from gameengine.agent import Agent
-from rl.env import KuhhandelEnv
 
 
 class RLAgent(Agent):
     """Agent wrapper for training - converts int actions to GameActions.
     """
 
-    def __init__(self, name: str, env: KuhhandelEnv):
+    def __init__(self, name: str, env: gymnasium.Env):
         super().__init__(name)
         self.env = env
         self.last_action_int: Optional[int] = None

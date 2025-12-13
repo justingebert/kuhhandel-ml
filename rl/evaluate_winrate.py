@@ -1,6 +1,6 @@
-import os
 import argparse
 import multiprocessing
+from pathlib import Path
 import numpy as np
 import gymnasium as gym
 from sb3_contrib import MaskablePPO
@@ -10,6 +10,9 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
 from tests.demo_game import RandomAgent
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
     return env.unwrapped.get_action_mask()
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--main", type=str, default=r"models\kuhhandel_ppo_latest.zip", help="Path to main model zip")
+    parser.add_argument("--main", type=str, default=str(DEFAULT_MODEL_PATH), help="Path to main model zip")
     parser.add_argument("--opp", type=str, default="random", help="'random' or path to opponent model zip")
     parser.add_argument("--n", type=int, default=100, help="Number of games")
     

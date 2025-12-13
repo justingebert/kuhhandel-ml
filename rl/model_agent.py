@@ -12,6 +12,7 @@ class ModelAgent(Agent):
     """
     An agent that uses a trained SB3 MaskablePPO model to make decisions.
     """
+
     def __init__(self, name: str, model_path: str, env: KuhhandelEnv, model_instance=None):
         super().__init__(name)
         self.env = env
