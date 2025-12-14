@@ -3,6 +3,7 @@ import glob
 import random
 import numpy as np
 import gymnasium as gym
+from pathlib import Path
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
@@ -17,11 +18,14 @@ from tests.demo_game import RandomAgent
 def mask_valid_action(env: gym.Env) -> np.ndarray:
     return env.unwrapped.get_action_mask()
 
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+MODEL_DIR = SCRIPT_DIR / "models"
+
 LOG_DIR = "logs"
-MODELS_DIR = "models"
-SELFPLAY_DIR = "models/selfplay_pool"
-LATEST_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_latest"
-FINAL_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_final"
+SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
+LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
+FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
 N_GENERATIONS = 10
 STEPS_PER_GEN = 20000  
@@ -33,7 +37,7 @@ PROB_RANDOM = 0
 MODEL_CACHE = {}
 
 os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(SELFPLAY_DIR, exist_ok=True)
 
 

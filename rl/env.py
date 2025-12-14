@@ -63,6 +63,7 @@ class KuhhandelEnv(gym.Env):
 
         self.episode_step = 0
         self.max_steps = 500
+        self.last_quartet_count = 0
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
@@ -84,6 +85,7 @@ class KuhhandelEnv(gym.Env):
         self.controller = GameController(self.game, self.agents)
 
         self.episode_step = 0
+        self.last_quartet_count = 0
 
         observation = self._get_observation()
         info = {}
@@ -145,6 +147,16 @@ class KuhhandelEnv(gym.Env):
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
 
+        # Quartet Bonus: Reward building quartets while the deck is still active
+        rl_player = self.game.players[self.rl_agent_id]
+        current_quartets = sum(1 for c in rl_player.get_animal_counts().values() if c == 4)
+        quartet_diff = current_quartets - self.last_quartet_count
+
+        if len(self.game.animal_deck) > 0 and quartet_diff != 0:
+            reward += quartet_diff * 0.3
+        
+        self.last_quartet_count = current_quartets
+
         # Reward/penalty for cow trade outcomes based on economic efficiency
         if self.game.last_trade_result is not None:
             result = self.game.last_trade_result
@@ -169,7 +181,7 @@ class KuhhandelEnv(gym.Env):
         # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return reward + 1.0
+            return reward + 5.0
 
         return reward
 

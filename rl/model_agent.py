@@ -26,6 +26,6 @@ class ModelAgent(Agent):
 
         action_mask = self.env.unwrapped.get_action_mask_for_player(self.player_id)
 
-        action_int = self.model.predict(obs, action_masks=action_mask, deterministic=True)
-
-        return self.env.decode_action(action_int, game)
+        action, state = self.model.predict(obs, action_masks=action_mask, deterministic=True)
+        
+        return self.env.decode_action(action, game)
