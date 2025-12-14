@@ -124,6 +124,12 @@ class KuhhandelEnv(gym.Env):
 
         obs = self._get_observation()
         info = {}
+        
+        if terminated:
+            scores = self.game.get_scores()
+            if scores:
+                max_s = max(scores.values())
+                info["winners"] = [p for p, s in scores.items() if s == max_s]
 
         return obs, reward, terminated, truncated, info
 
