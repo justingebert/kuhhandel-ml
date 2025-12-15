@@ -54,6 +54,10 @@ class KuhhandelEnv(gym.Env):
             "trade_animal_type": Discrete(N_ANIMALS + 1),
             # Card counts are visible, exact values are hidden
             "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
+
+            # Money tracking
+            "known_player_money": MultiDiscrete([MONEY_UNKNOWN + 1] * N_PLAYERS),
+            "auction_payment_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),
         })
 
         self.game: Optional[Game] = None
@@ -61,7 +65,11 @@ class KuhhandelEnv(gym.Env):
         self.agents: List[Agent] = []
         self.rl_agent_id = 0  # RL agent is always player 0
 
+        self.money_known = np.ones((N_PLAYERS, N_PLAYERS), dtype=bool)
+        self.last_action_idx = 0
+
         self.episode_step = 0
+
         self.max_steps = 500
         self.last_quartet_count = 0
 
@@ -86,6 +94,8 @@ class KuhhandelEnv(gym.Env):
 
         self.episode_step = 0
         self.last_quartet_count = 0
+        self.money_known = np.ones((self.num_players, self.num_players), dtype=bool)
+        self.last_action_idx = 0
 
         observation = self._get_observation()
         info = {}
@@ -114,8 +124,14 @@ class KuhhandelEnv(gym.Env):
         # execute the RL agent's action
         self.controller.step()
 
+        # Update money beliefs based on new actions
+        self._update_money_beliefs()
+
         # Continue playing until the RL agent needs to make another decision
         self._play_until_next_decision()
+
+        # Update money beliefs again after other players played
+        self._update_money_beliefs()
 
         terminated = self.game.is_game_over()
         truncated = self.episode_step >= self.max_steps
@@ -135,7 +151,7 @@ class KuhhandelEnv(gym.Env):
 
     def _play_until_next_decision(self):
         """Advance the game until the RL agent needs to make a decision."""
-        max_steps = 100  # Safety limit to prevent infinite loops
+        max_steps = 2000  # Safety limit increased to support long "Soft Pass" auctions 470 money schritte mal 4 
 
         for _ in range(max_steps):
             if self.game.is_game_over():
@@ -191,6 +207,71 @@ class KuhhandelEnv(gym.Env):
 
         return reward
 
+    def _update_money_beliefs(self):
+        """Update money knowledge based on game events."""
+        # Process new actions from history
+        while self.last_action_idx < len(self.game.action_history):
+            action_entry = self.game.action_history[self.last_action_idx]
+            self.last_action_idx += 1
+
+            action_type = action_entry["action"]
+            details = action_entry["details"]
+
+            if action_type == "donkey_money":
+                # Public information, everyone knows => knowledge preserved
+                pass
+
+            elif action_type == "bid":
+                # Public information => knowledge preserved
+                pass
+            
+            elif action_type == "start_auction":
+                pass
+
+            elif action_type == "auctioneer_buys":
+                # Public payment of bid amount.
+                # Assuming deterministic payment preserves knowledge.
+                pass
+
+            elif action_type == "high_bidder_wins":
+                # Public payment of bid amount.
+                # Assuming deterministic payment preserves knowledge.
+                pass
+
+            elif action_type == "start_cow_trade":
+                pass
+
+            elif action_type == "resolve_trade":
+                # Hidden information!
+                # Only the two involved players know the cash flow.
+                # All other players lose track of BOTH involved players' money.
+                
+                # Iterate backwards to find start_cow_trade to identify involved players
+                # Since resolve_trade doesn't have player IDs directly in details always (or we want to be safe)
+                p1_id = None
+                p2_id = None
+                
+                for i in range(self.last_action_idx - 2, max(-1, self.last_action_idx - 10), -1):
+                    prev = self.game.action_history[i]
+                    if prev["action"] == "start_cow_trade":
+                        p1_id = prev["details"]["initiator"]
+                        p2_id = prev["details"]["target"]
+                        break
+                
+                if p1_id is not None and p2_id is not None:
+                    # Everyone NOT p1 or p2 loses knowledge of p1 and p2
+                    for obs_id in range(self.num_players):
+                        if obs_id != p1_id and obs_id != p2_id:
+                            self.money_known[obs_id, p1_id] = False
+                            self.money_known[obs_id, p2_id] = False
+
+
+        # Check for players with 0 cards -> Knowledge restored
+        for p_id, p in enumerate(self.game.players):
+            if len(p.money) == 0:
+                # Everyone knows this player has 0
+                self.money_known[:, p_id] = True
+
 
     def get_observation_for_player(self, player_id: int) -> dict:
         """
@@ -237,9 +318,28 @@ class KuhhandelEnv(gym.Env):
             "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
             "trade_offer_card_count": self.game.trade_offer_card_count,
+            
+            # Expanded observation
+            "known_player_money": self._get_known_money_obs(player_id),
+            "auction_payment_card_count": self.game.last_auction_payment_card_count,
         }
 
         return observation
+
+    def _get_known_money_obs(self, observer_id: int) -> np.ndarray:
+        """Get the known money array for a specific observer."""
+        known_values = np.full(N_PLAYERS, MONEY_UNKNOWN, dtype=np.int64)
+        knowledge_flags = self.money_known[observer_id]
+        
+        for target_id in range(N_PLAYERS):
+            if knowledge_flags[target_id]:
+                # If known, cheat and look at game state (Oracle approach)
+                # Return normalized index (money // 10) instead of raw value
+                # because observation space is discrete indices
+                total_money = self.game.players[target_id].get_total_money()
+                known_values[target_id] = total_money // MONEY_STEP
+        
+        return known_values
 
     def _get_observation(self) -> dict:
         return self.get_observation_for_player(self.rl_agent_id)
@@ -376,8 +476,11 @@ max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
 
 # offers/bids as multiples of 10 up to MAX_MONEY
 MONEY_STEP = 10
-MAX_MONEY = 940*N_PLAYERS  # edited so that max_money depends on number of players
-N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
+MAX_MONEY = 4700  # Hard limit based on deck total
+N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..470 = 471 levels
+MONEY_UNKNOWN = N_MONEY_LEVELS  # Index 471 (the 472nd value)
+
+# ----- ACTION INDICES -----
 
 # ----- ACTION INDICES -----
 # Turn-level actions

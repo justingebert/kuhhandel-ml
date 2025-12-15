@@ -101,13 +101,23 @@ def main():
     # create n envs for parallel training
     env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
     vec_env = SubprocVecEnv(env_fns) 
+    
+    # Define larger network Policy
+    # [256, 256] neurons to handle sparse/large observation space
+    policy_kwargs = dict(net_arch=[256, 256])
 
     
     # load existing pr create new one
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
         model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device="auto")
     else:
-        model = MaskablePPO("MultiInputPolicy", vec_env, verbose=1, device="auto")
+        model = MaskablePPO(
+            "MultiInputPolicy", 
+            vec_env, 
+            verbose=1, 
+            device="auto",
+            policy_kwargs=policy_kwargs
+        )
     
     
     for gen in range(1, N_GENERATIONS + 1):

@@ -63,6 +63,7 @@ class Game:
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
+        self.last_auction_payment_card_count: int = 0
 
         # Track last completed trade result for reward calculation
         # (winner_player_id, loser_player_id, animals_transferred, offer, counter_offer, net_payment)
@@ -275,6 +276,9 @@ class Game:
         self.auction_high_bid = bid_amount
         self.auction_high_bidder = player_id
         self.auction_bids[player_id] = bid_amount
+        
+        # Soft Pass Rule: Reset passes so everyone can bid again
+        self.reset_auction_passes()
 
         self._log_action("bid", {
             "player": player_id,
@@ -348,6 +352,10 @@ class Game:
 
         payer.remove_money(payment_cards)
         receiver.add_money(payment_cards)
+        
+        # Track card info for observation
+        self.last_auction_payment_card_count = len(payment_cards)
+        
         return True
 
 
@@ -613,6 +621,7 @@ class Game:
             "animals_remaining": len(self.animal_deck),
             "current_animal": self.current_animal.animal_type.display_name if self.current_animal else None,
             "auction_high_bid": self.auction_high_bid,
+            "auction_payment_card_count": self.last_auction_payment_card_count,
             "players": [
                 {
                     "id": p.player_id,
