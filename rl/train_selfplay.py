@@ -5,6 +5,7 @@ import numpy as np
 import gymnasium as gym
 from pathlib import Path
 import multiprocessing
+import time
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
@@ -28,8 +29,8 @@ SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 20
-STEPS_PER_GEN = 20000  
+N_GENERATIONS = 30
+STEPS_PER_GEN = 30000  
 N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
@@ -119,6 +120,7 @@ def main():
             policy_kwargs=policy_kwargs
         )
     
+    start_time = time.time()
     
     for gen in range(1, N_GENERATIONS + 1):
         print(f"\n--- Generation {gen} ---")
@@ -131,11 +133,16 @@ def main():
         print(f"Saved generation {gen} to {pool_path}")
         
         model.save(LATEST_MODEL_PATH)
+
+        # Print interim timing
+        elapsed_so_far = time.time() - start_time
+        print(f"Time elapsed: {elapsed_so_far/60:.2f} mins")
         
-    model.save(FINAL_MODEL_PATH)
-    print(f"Training loop finished. Model saved to {FINAL_MODEL_PATH}")
+    total_time = time.time() - start_time
+    print(f"Training loop finished in {total_time/60:.2f} minutes. Model saved to {FINAL_MODEL_PATH}")
     vec_env.close()
 
 if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
+    multiprocessing.freeze_support()
     main()
