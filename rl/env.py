@@ -376,7 +376,7 @@ max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
 
 # offers/bids as multiples of 10 up to MAX_MONEY
 MONEY_STEP = 10
-MAX_MONEY = 940*5  # might adjust
+MAX_MONEY = 940*N_PLAYERS  # edited so that max_money depends on number of players
 N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
 
 # ----- ACTION INDICES -----
