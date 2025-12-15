@@ -4,6 +4,7 @@ import random
 import numpy as np
 import gymnasium as gym
 from pathlib import Path
+import multiprocessing
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
@@ -29,7 +30,7 @@ FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
 N_GENERATIONS = 20
 STEPS_PER_GEN = 20000  
-N_ENVS = 16  # cores
+N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
 PROB_RANDOM = 0
