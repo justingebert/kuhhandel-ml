@@ -10,7 +10,8 @@ import time
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecCheckNan
+import torch
 
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
@@ -29,7 +30,7 @@ SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 30
+N_GENERATIONS = 3
 STEPS_PER_GEN = 30000  
 N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
@@ -97,11 +98,13 @@ def make_env(rank: int, opponent_generator_func):
 
 
 def main():
+    torch.autograd.set_detect_anomaly(True)
     print(f"Starting Self-Play Training with {N_ENVS} parallel environments...")
     
     # create n envs for parallel training
     env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
     vec_env = SubprocVecEnv(env_fns) 
+    vec_env = VecCheckNan(vec_env, raise_exception=True)
     
     # Define larger network Policy
     # [256, 256] neurons to handle sparse/large observation space
@@ -109,15 +112,22 @@ def main():
 
     
     # load existing pr create new one
+
+    device = "cuda"
+
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
-        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device="auto")
+        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=device)
     else:
         model = MaskablePPO(
             "MultiInputPolicy", 
             vec_env, 
             verbose=1, 
-            device="auto",
-            policy_kwargs=policy_kwargs
+            device=device,
+            policy_kwargs=policy_kwargs,
+            learning_rate=1e-4,   # Lower LR for stability
+            clip_range=0.2,       # Conservative clipping
+            gae_lambda=0.95,
+            gamma=0.99,
         )
     
     start_time = time.time()

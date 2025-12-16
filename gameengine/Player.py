@@ -44,17 +44,32 @@ class Player:
         return calculate_total_value(self.money)
 
     def get_animal_counts(self) -> Dict[AnimalType, int]:
-        """Get count of each animal type owned."""
-        counts = Counter(card.animal_type for card in self.animals)
-        return dict(counts)
+        """Get count of each animal type owned.
+        
+        Normalizes all stored AnimalType enums to the current process's standard Enums 
+        to handle multiprocessing identity glitches.
+        """
+        counts = {}
+        # Initialize 0 for all types
+        for t in AnimalType:
+            counts[t] = 0
+            
+        for card in self.animals:
+            # Normalize by name
+            standard_type = AnimalType[card.animal_type.name]
+            counts[standard_type] += 1
+            
+        return counts
 
     def has_animal_type(self, animal_type: AnimalType) -> bool:
-        """Check if player has at least one of the given animal type."""
-        return any(card.animal_type == animal_type for card in self.animals)
+        """Check if player has at least one of the given animal type (comparing by name)."""
+        target_name = animal_type.name #vergleich über namen, da die enums nicht identisch sind aufgrund des multiprocessing
+        return any(card.animal_type.name == target_name for card in self.animals)
 
     def get_animal_count(self, animal_type: AnimalType) -> int:
-        """Get count of a specific animal type."""
-        return sum(1 for card in self.animals if card.animal_type == animal_type)
+        """Get count of a specific animal type (comparing by name)."""
+        target_name = animal_type.name
+        return sum(1 for card in self.animals if card.animal_type.name == target_name)
 
     def get_money_histogram(self, money_values: List[int]) -> Dict[int, int]:
         """Get count of each money card value.

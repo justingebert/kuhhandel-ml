@@ -153,7 +153,25 @@ class Game:
             # If deck is empty and no actions available, but game isn't over,
             # the player must pass (should usually not happen if logic is correct)
             if deck_empty and not actions and not self.is_game_over():
-                pass
+                # If player has no incomplete sets, they are simply done participating
+                has_incomplete_sets = False
+                for animal_type in AnimalType.get_all_types():
+                    if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
+                        has_incomplete_sets = True
+                        break
+                
+                if not has_incomplete_sets:
+                    return []
+
+                # If we have incomplete sets but no valid actions, that's a problem (Deadlock)
+                print(f"DEBUG: Deadlock detected for player {player_id}")
+                print(f"Animals: {player.get_animal_counts()}")
+                print(f"Deck Empty: {deck_empty}")
+                print(f"Game Over: {self.is_game_over()}")
+                # Dump all players to assist debugging
+                for p in self.players:
+                    print(f"P{p.player_id}: {p.get_animal_counts()}")                                   #TODO: remove if issue doesnt continue
+                raise ValueError("No Valid Actions for player with incomplete sets")
 
         elif self.phase == GamePhase.AUCTION_BIDDING:
             # Only non-auctioneers can bid during this phase
@@ -168,7 +186,7 @@ class Game:
 
                 total_money = self.players[player_id].get_total_money()
 
-                money_steps_mod10 = range(start_bid%10,total_money%10+1)
+                money_steps_mod10 = range(start_bid//10,total_money//10+1)
 
                 for amount in money_steps_mod10:
                     actions.append(Actions.bid(amount=10*amount))
@@ -295,6 +313,10 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
+            self._log_action("auctioneer_gets_free", {
+                "auctioneer": self.current_player_idx,
+                "animal": self.current_animal.animal_type.display_name
+            })
             self.end_auction()
             return True
 
@@ -323,6 +345,10 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
+            self._log_action("auctioneer_gets_free", {
+                "auctioneer": self.current_player_idx,
+                "animal": self.current_animal.animal_type.display_name
+            })
             self.end_auction()
             return True
 
@@ -372,6 +398,7 @@ class Game:
         self.auction_high_bid = 0
         self.auction_current_bidder_idx = None
         self.auction_bidders_passed.clear()
+        self.last_auction_payment_card_count = 0
         self._next_turn()
 
     def get_current_decision_player(self) -> int:
@@ -417,18 +444,30 @@ class Game:
         for i in range(self.num_players):
             if i != auctioneer and i not in self.auction_bidders_passed:
                 if self.players[i].get_total_money() >= min_bid:
-                    return True
+                    return False
         
-        return False
+        return True
 
     def choose_cow_trade_opponent(self, target_id: int):
         self.trade_initiator = self.current_player_idx
         self.trade_target = target_id
+        
+        self._log_action("cow_trade_choose_opponent", {
+            "initiator": self.trade_initiator,
+            "target": self.trade_target
+        })
+
         self.phase = GamePhase.COW_TRADE_CHOOSE_ANIMAL
 
 
     def choose_cow_trade_animal(self, animal_type: AnimalType):
         self.trade_animal_type = animal_type
+        
+        self._log_action("cow_trade_choose_animal", {
+            "player": self.current_player_idx,
+            "animal": animal_type.display_name
+        })
+
         self.phase = GamePhase.COW_TRADE_OFFER
 
     def choose_cow_trade_offer(self, amount: int):
@@ -439,11 +478,21 @@ class Game:
             initiator = self.players[self.trade_initiator]
             offer_cards = initiator.select_payment_cards(amount)
             self.trade_offer_card_count = len(offer_cards) if offer_cards else 0
+        
+        self._log_action("cow_trade_offer", {
+            "player": self.trade_initiator,
+            "amount": amount,
+            "cards": self.trade_offer_card_count
+        })
 
         self.phase = GamePhase.COW_TRADE_RESPONSE
 
     def choose_cow_trade_counter_offer(self, amount: int):
         self.trade_counter_offer = amount
+        self._log_action("cow_trade_counter_offer", {
+            "player": self.trade_target,
+            "amount": amount
+        })
 
     def execute_cow_trade(self) -> bool:
         """Execute cow trade using game state after counter offer has been made.
@@ -569,6 +618,16 @@ class Game:
                 # Double-check if game is now over after skipping
                 if self.is_game_over():
                     self.phase = GamePhase.GAME_OVER
+                elif not self.get_valid_actions():
+                     # DEADLOCK DIAGNOSIS
+                     print(f"\n!!! DEADLOCK DETECTED !!!", flush=True)
+                     print(f"Reproduce with SEED: {self.seed}", flush=True)
+                     print(f"Round: {self.round_number}", flush=True)
+                     for p in self.players:
+                         print(f"P{p.player_id}: {p.get_animal_counts()}", flush=True)
+                     print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", flush=True)
+                     
+                     raise TimeoutError("Deadlock detected")
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
@@ -583,7 +642,7 @@ class Game:
         for player in self.players:
             animal_counts = player.get_animal_counts()
             for animal_type, count in animal_counts.items():
-                if count != 4:
+                if count > 0 and count != 4:
                     # Incomplete set found - game must continue
                     return False
 

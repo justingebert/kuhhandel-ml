@@ -85,6 +85,7 @@ class GameController:
         bidder_player = self.game.players[bidder_id]
         if bidder_player.get_total_money() < min_bid:
             self.game.auction_bidders_passed.add(bidder_id)
+            self.game._log_action("pass_force_money", {"player": bidder_id, "min_bid": min_bid})
             self.game.advance_auction_bidder()
             return
 
@@ -109,6 +110,7 @@ class GameController:
         else:
             # Player passed
             self.game.auction_bidders_passed.add(bidder_id)
+            self.game._log_action("pass", {"player": bidder_id})
 
         # Move to next bidder
         self.game.advance_auction_bidder()
