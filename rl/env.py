@@ -12,10 +12,6 @@ from gameengine.game import Game, GamePhase
 from rl.random_agent import RandomAgent
 from rl.rl_agent import RLAgent
 
-import json
-import time
-import os
-
 
 class KuhhandelEnv(gym.Env):
 
@@ -360,80 +356,7 @@ class KuhhandelEnv(gym.Env):
         return known_values
 
     def _get_observation(self) -> dict:
-        obs = self.get_observation_for_player(self.rl_agent_id)
-        self._validate_observation(obs)
-        return obs
-
-    def _validate_observation(self, obs: dict):
-        """Validate observation for NaN/Inf/Bounds."""
-        try:
-           for key, value in obs.items():
-               # Check for NaN/Inf
-               if np.any(np.isnan(value)) or np.any(np.isinf(value)):
-                   self._dump_debug_state(f"NaN/Inf detected in {key}", obs)
-                   raise ValueError(f"NaN/Inf detected in observation key: {key}")
-               
-               # Check bounds for Discrete/MultiDiscrete
-               space = self.observation_space[key]
-               if isinstance(space, Discrete):
-                    if not (0 <= value < space.n):
-                        self._dump_debug_state(f"Discrete bounds error in {key}: {value} not in [0, {space.n})", obs)
-                        raise ValueError(f"Value {value} out of bounds for {key} (max {space.n})")
-                        
-               elif isinstance(space, MultiDiscrete):
-                   # value checks against space.nvec
-                   if np.any(value < 0) or np.any(value >= space.nvec):
-                       self._dump_debug_state(f"MultiDiscrete bounds error in {key}", obs)
-                       raise ValueError(f"Values out of bounds for {key}")
-                       
-        except Exception as e:
-            # Catch-all to ensure we dump even if something else goes wrong during validation 
-            if "NaN" not in str(e) and "bounds" not in str(e):
-                 self._dump_debug_state(f"Validation Exception: {e}", obs)
-            raise e
-
-    def _dump_debug_state(self, reason: str, obs: dict = None, mask: np.ndarray = None):
-        """Dump current state to a file for debugging."""
-        print(f"\n!!! TRIGGERING CHECKPOINT DUMP: {reason} !!!")
-        
-        timestamp = int(time.time())
-        filename = f"crash_dump_{timestamp}.json"
-        
-        # Helper to safely serialize
-        def safe_serialize(obj):
-            if isinstance(obj, (np.integer, np.int64, np.int32)):
-                return int(obj)
-            if isinstance(obj, (np.floating, np.float64, np.float32)):
-                return float(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            if hasattr(obj, 'value'): # Enum
-                return obj.value
-            return str(obj)
-
-        debug_data = {
-            "reason": reason,
-            "timestamp": timestamp,
-            "game_state": str(self.game.get_state()), # Fallback to string for complex game state first
-            "observation": obs,
-            "action_mask": mask,
-            "game_history": self.game.action_history[-20:] # Last 20 actions
-        }
-        
-        try:
-            with open(filename, "w") as f:
-                json.dump(debug_data, f, indent=4, default=safe_serialize)
-            print(f"CRASH DUMP SAVED TO: {os.path.abspath(filename)}")
-        except Exception as e:
-            print(f"FAILED TO SAVE CRASH DUMP: {e}")
-            # Try last resort: write as plain text repr
-            try:
-                with open(filename + ".txt", "w") as f:
-                    f.write(f"Reason: {reason}\n")
-                    f.write(f"Obs: {obs}\n")
-                    f.write(f"Mask: {mask}\n")
-            except:
-                print("Even text dump failed.")
+        return self.get_observation_for_player(self.rl_agent_id)
 
     def get_action_mask_for_player(self, player_id: int) -> np.ndarray:
         """
@@ -508,7 +431,11 @@ class KuhhandelEnv(gym.Env):
 
         if mask.sum() == 0:
             print(f"FATAL: Empty action mask for Player {player_id}")
-            self._dump_debug_state(f"Empty Action Mask for Player {player_id}", mask=mask)
+            print(f"Phase: {self.game.phase}")
+            print(f"Valid Actions from Game: {valid_actions}")
+            print(f"Player Money: {player_money}")
+            print(f"Auction High Bid: {current_high_bid}")
+            print(f"State Dump: {self.game.__dict__}")
             raise ValueError("Empty Action Mask detected!")
             
         return mask
