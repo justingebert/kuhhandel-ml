@@ -105,6 +105,9 @@ class KuhhandelEnv(gym.Env):
         self.last_quartet_count = 0
         self.money_known = np.ones((self.num_players, self.num_players), dtype=bool)
         self.last_action_idx = 0
+        
+        # Track history index specifically for rewards
+        self.last_reward_history_idx = 0
 
         observation = self._get_observation()
         info = {}
@@ -178,13 +181,41 @@ class KuhhandelEnv(gym.Env):
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
 
+        #Penalty for vulnerability
+        if self.game.players[self.rl_agent_id].get_total_money() == 0:
+            reward -= 0.2
+
+        # Money Dominance Reward: Small bonus for holding >50% of circulating money
+        total_money_in_play = sum(p.get_total_money() for p in self.game.players)
+        if total_money_in_play > 0 and self.game.donkeys_revealed > 0:
+            rl_money = self.game.players[self.rl_agent_id].get_total_money()
+            if rl_money > 0.5 * total_money_in_play:
+                reward += 0.05
+
+        # Reward for winning auctions (flat bonus)
+        current_history_len = len(self.game.action_history)
+        for i in range(self.last_reward_history_idx, current_history_len):
+            action_entry = self.game.action_history[i]
+            a_type = action_entry["action"]
+            details = action_entry["details"]
+            
+            # Check for auction wins
+            if a_type == "high_bidder_wins":
+                if details["bidder"] == self.rl_agent_id:
+                    reward += 0.1
+            elif a_type == "auctioneer_gets_free":
+                if details["auctioneer"] == self.rl_agent_id:
+                    reward += 0.2
+                    
+        self.last_reward_history_idx = current_history_len
+
         # Quartet Bonus: Reward building quartets while the deck is still active
         rl_player = self.game.players[self.rl_agent_id]
         current_quartets = sum(1 for c in rl_player.get_animal_counts().values() if c == 4)
         quartet_diff = current_quartets - self.last_quartet_count
 
         if len(self.game.animal_deck) > 0 and quartet_diff != 0:
-            reward += quartet_diff * 0.3
+            reward += quartet_diff * 0.5
         
         self.last_quartet_count = current_quartets
 
