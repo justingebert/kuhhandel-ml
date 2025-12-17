@@ -33,8 +33,6 @@ def create_specific_opponents(n_opponents, env_ref, opponent_type, opponent_mode
             try:
                 opponents.append(ModelAgent(f"Opponent_{i}", opponent_model_path, env=env_ref))
             except Exception as e:
-                # If model path is None but type is model, fallback to random? 
-                # No, that should be handled by caller.
                 raise RuntimeError(f"Error loading opponent model: path:{opponent_model_path} Error: {e}")
     
     return opponents
@@ -104,8 +102,6 @@ def run_batch(main_model_path, opp_type, opp_path, n_games, label="Batch"):
                 if done:
                     games_completed += 1
                     
-                    # Logic: Did Main Agent (Player 0) win?
-                    # We check info['winners'] which contains a list of player IDs [0, 1, 2]
                     info = infos[i]
                     if "winners" in info:
                         if 0 in info["winners"]:
