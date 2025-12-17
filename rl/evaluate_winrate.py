@@ -6,10 +6,16 @@ import gymnasium as gym
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.vec_env import SubprocVecEnv
+from sb3_contrib.common.maskable import distributions as maskable_dist
 
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
 from tests.demo_game import RandomAgent
+
+from rl.train_selfplay import robust_apply_masking
+
+original_apply_masking = maskable_dist.MaskableCategorical.apply_masking #Simplex error fix
+maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"

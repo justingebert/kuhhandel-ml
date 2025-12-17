@@ -66,7 +66,7 @@ STEPS_PER_GEN = 30000
 N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
-PROB_RANDOM = 0
+PROB_RANDOM = 0.05
 
 MODEL_CACHE = {}
 
@@ -86,6 +86,10 @@ def get_cached_model(model_path):
     if name not in MODEL_CACHE:
         try:
             model = MaskablePPO.load(model_path, env=None, device=DEVICE)
+            
+            if hasattr(model, "rollout_buffer"): #Buffer safes past moves required for training not for simulation
+                model.rollout_buffer = None
+                
             MODEL_CACHE[name] = model
         except Exception as e:
             print(f"Error loading model {name}: {e}")
