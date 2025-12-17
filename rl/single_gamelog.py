@@ -4,12 +4,12 @@ import sys
 from stable_baselines3 import PPO
 from sb3_contrib import MaskablePPO
 import numpy as np
-
+import random
 from rl.env import KuhhandelEnv
 from rl.train_selfplay import LATEST_MODEL_PATH
 from gameengine.actions import ActionType
 
-DEBUG_SEED = 660507161
+DEBUG_SEED = random.randint(0, 2**32 - 1)
 
 def run_game():
     # Setup Logging
