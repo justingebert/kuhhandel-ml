@@ -9,9 +9,40 @@ import time
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
+from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecCheckNan
-# import torch
+import torch
+
+# Fix for Simplex error due to floating point precision issues
+original_apply_masking = maskable_dist.MaskableCategorical.apply_masking
+
+def robust_apply_masking(self, masks: torch.Tensor):
+    # Access logits directly
+    if hasattr(self, 'logits'):
+        logits = self.logits
+    elif hasattr(self, 'probs'):
+         logits = torch.log(self.probs + 1e-8)
+    else:
+        # Fallback - practically shouldn't happen in SB3 PPO
+        logits = torch.tensor([])
+
+    HUGE_NEG = -1e8
+    if masks is not None and logits.numel() > 0:
+        # Handle numpy masks
+        if isinstance(masks, np.ndarray):
+            masks = torch.from_numpy(masks).to(logits.device)
+        
+        # Apply masking
+        masked_logits = torch.where(masks.bool(), logits, torch.tensor(HUGE_NEG).to(logits.device))
+        
+        # Re-initialize the Categorical distribution with validate_args=False
+        # This bypasses the strict Simplex check that fails on 1e-7 errors
+        torch.distributions.Categorical.__init__(self, logits=masked_logits, validate_args=False)
+    
+    return self
+
+maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
@@ -39,6 +70,8 @@ PROB_RANDOM = 0
 
 MODEL_CACHE = {}
 
+DEVICE = "cpu" # "cuda"
+
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(SELFPLAY_DIR, exist_ok=True)
@@ -52,7 +85,7 @@ def get_cached_model(model_path):
     
     if name not in MODEL_CACHE:
         try:
-            model = MaskablePPO.load(model_path, env=None, device="auto")
+            model = MaskablePPO.load(model_path, env=None, device=DEVICE)
             MODEL_CACHE[name] = model
         except Exception as e:
             print(f"Error loading model {name}: {e}")
@@ -117,16 +150,14 @@ def main():
     
     # load existing pr create new one
 
-    device = "cuda"
-
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
-        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=device)
+        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE)
     else:
         model = MaskablePPO(
             "MultiInputPolicy", 
             vec_env, 
             verbose=1, 
-            device=device,
+            device=DEVICE,
             policy_kwargs=policy_kwargs
         )
     
