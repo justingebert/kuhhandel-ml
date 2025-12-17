@@ -243,7 +243,7 @@ class KuhhandelEnv(gym.Env):
         # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return reward + 5.0
+            return reward + 7.5
 
         return reward
 
