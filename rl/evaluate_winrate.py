@@ -1,4 +1,5 @@
 import argparse
+import functools
 import multiprocessing
 from pathlib import Path
 import numpy as np
@@ -20,8 +21,17 @@ maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"
 
+
+
 def mask_valid_action(env: gym.Env) -> np.ndarray:
     return env.unwrapped.get_action_mask()
+
+def opponent_generator_func(opponent_type, opponent_model_path, env_ref, n):
+    """
+    Module-level opponent generator function (picklable for multiprocessing).
+    Uses fixed parameters for opponent_type and opponent_model_path.
+    """
+    return create_specific_opponents(n, env_ref, opponent_type, opponent_model_path)
 
 def create_specific_opponents(n_opponents, env_ref, opponent_type, opponent_model_path):
     opponents = []
@@ -30,10 +40,8 @@ def create_specific_opponents(n_opponents, env_ref, opponent_type, opponent_mode
         if opponent_type == "random":
             opponents.append(RandomAgent(f"Random_{i}"))
         elif opponent_type == "model":
-            try:
-                opponents.append(ModelAgent(f"Opponent_{i}", opponent_model_path, env=env_ref))
-            except Exception as e:
-                raise RuntimeError(f"Error loading opponent model: path:{opponent_model_path} Error: {e}")
+            # Each subprocess loads the model once (shared within subprocess)
+            opponents.append(ModelAgent(f"Opponent_{i}", opponent_model_path, env=env_ref))
     
     return opponents
 
@@ -41,150 +49,160 @@ def make_eval_env(rank, opponent_type, opponent_model_path):
     def _init():
         env = KuhhandelEnv(num_players=3)
         
-        def opponent_generator(env_ref, n):
-            return create_specific_opponents(n, env_ref, opponent_type, opponent_model_path)
-            
-        env.opponent_generator = opponent_generator
+        # Create opponent generator using functools.partial (picklable)
+        env.opponent_generator = functools.partial(
+            opponent_generator_func,
+            opponent_type,
+            opponent_model_path
+        )
         env = ActionMasker(env, mask_valid_action)
         return env
     
     return _init
 
-def run_batch(main_model_path, opp_type, opp_path, n_games, label="Batch"):
-    """
-    Runs a batch of games and returns stats.
-    """
 
-    # Don't use more envs than games requested
-    n_envs = min(n_games, multiprocessing.cpu_count(), 16)
-
-    print(f"\n--- {label} ---")
-    print(f"Main Agent: {'Random' if main_model_path is None else main_model_path}")
-    print(f"Opponents:  {opp_type} ({'Random' if opp_path is None else opp_path})")
-    print(f"Using {n_envs} parallel environments")
-
-    
-    env_fns = [make_eval_env(i, opp_type, opp_path) for i in range(n_envs)]
-    vec_env = SubprocVecEnv(env_fns)
-    
-    wins = 0
-    games_completed = 0
-    
-    try:
-        if main_model_path:
-            main_model = MaskablePPO.load(main_model_path, env=vec_env)
-        else:
-            main_model = None
-
-        obs = vec_env.reset()
-        
-        while games_completed < n_games:
-            # We must manually fetch masks from all envs.
-            action_masks = [vec_env.env_method("get_action_mask", indices=[i])[0] for i in range(n_envs)]
-            action_masks = np.stack(action_masks)
-            
-            if main_model:
-                action, _ = main_model.predict(obs, action_masks=action_masks, deterministic=True)
-            else:
-                 # Random agent logic respecting masks
-                 actions = []
-                 for mask in action_masks:
-                     valid_actions = np.flatnonzero(mask)
-                     if len(valid_actions) > 0:
-                        actions.append(np.random.choice(valid_actions))
-                     else:
-                        actions.append(0) 
-                 action = np.array(actions)
-            
-            obs, rewards, dones, infos = vec_env.step(action)
-            
-            for i, done in enumerate(dones):
-                if done:
-                    games_completed += 1
-                    
-                    info = infos[i]
-                    if "winners" in info:
-                        if 0 in info["winners"]:
-                            wins += 1
-                        
-                    if games_completed % 10 == 0 or games_completed == n_games:
-                        print(f"Progress: {games_completed}/{n_games} | Wins (P0): {wins}", end="\r")
-                    
-                    if games_completed >= n_games:
-                        break
-                        
-    finally:
-        vec_env.close()
-
-    winrate = wins / games_completed if games_completed > 0 else 0
-    print(f"\nResult: {winrate:.2%} Winrate (as Player 0)")
-    
-    return {
-        "games": games_completed,
-        "wins_p0": wins,
-        "winrate_p0": winrate
-    }
 
 def evaluate_fair(model_a_path, model_b_path, n_total_games):
     """
-    Evaluates Model A vs Model B by playing two halves with swapped roles.
-    1. A vs B (A is P0)
-    2. B vs A (A is P1, P2) -> Wait, run_batch only tracks P0 wins!
+    Evaluates Model A vs Model B by running both configurations in parallel.
     
-    So here is the interpretation:
-    Run 1: A vs B,B.  Result = How good is A as a Solo Player against B.
-    Run 2: B vs A,A.  Result = How good is B as a Solo Player against A.
+    Creates mixed environments:
+    - Half: A as P0 vs 2xB
+    - Half: B as P0 vs 2xA
     
-    If A is better than B, then:
-    - WR(A vs B) should be HIGH.
-    - WR(B vs A) should be LOW.
+    Both run simultaneously, eliminating sequential overhead and cache misses.
     """
     
     n_half = n_total_games // 2
+    total_envs = min(n_total_games, multiprocessing.cpu_count(), 16)
     
-    # --- Phase 1: A vs B ---
-    # Model A is Main (Player 0). Opponent is Model B.
-    # If model_b_path is None, opp_type is random.
-    opp_type_1 = "model" if model_b_path else "random"
+    # Split environments 40/60: Config2 needs more resources (2x model opponents)
+    if model_a_path:
+        n_envs_config1 = int(total_envs * 0.4)  # A vs Random (faster)
+    else:
+        n_envs_config1 = int(total_envs / 2)  # Random vs A (slower, 2x models in opponents)
     
-    stats_1 = run_batch(
-        main_model_path=model_a_path,
-        opp_type=opp_type_1, 
-        opp_path=model_b_path, 
-        n_games=n_half, 
-        label="Phase 1 (Model A as P0)"
-    )
-    
-    # --- Phase 2: B vs A ---
-    # Model B is Main (Player 0). Opponent is Model A.
-    # If model_a_path is None (Random A), opp_type is random.
-    opp_type_2 = "model" if model_a_path else "random"
-    
-    stats_2 = run_batch(
-        main_model_path=model_b_path,
-        opp_type=opp_type_2, 
-        opp_path=model_a_path, 
-        n_games=n_half, 
-        label="Phase 2 (Model B as P0 vs Model A)"
-    )
-    
-    # --- Aggregation ---
-    wr_a_solo = stats_1["winrate_p0"]
-    wr_b_solo = stats_2["winrate_p0"]
-    
-    # Winrate of A against B (Solo)
     print("\n" + "="*40)
-    print(f"FAIR EVALUATION RESULTS ({n_total_games} games)")
+    print(f"FAIR EVALUATION ({n_total_games} total games)")
     print("="*40)
     print(f"Model A: {model_a_path if model_a_path else 'Random'}")
     print(f"Model B: {model_b_path if model_b_path else 'Random'}")
-    print("-" * 40)
+    print(f"Using {total_envs} parallel environments (mixed configuration)")
+    print("="*40)
+    
+    # --- Create mixed environments ---
+    env_fns = []
+    
+    # Config 1: A as P0 vs 2xB
+    opp_type_1 = "model" if model_b_path else "random"
+    for i in range(n_envs_config1):
+        env_fns.append(make_eval_env(i, opp_type_1, model_b_path))
+    
+    # Config 2: B as P0 vs 2xA  
+    opp_type_2 = "model" if model_a_path else "random"
+    for i in range(n_envs_config1, total_envs):
+        env_fns.append(make_eval_env(i, opp_type_2, model_a_path))
+    
+    vec_env = SubprocVecEnv(env_fns)
+    
+    # Track stats for each configuration separately
+    config1_wins = 0  # A as P0
+    config1_games = 0
+    config2_wins = 0  # B as P0
+    config2_games = 0
+    
+    try:
+        # Load models for both configurations
+        if model_a_path:
+            model_a = MaskablePPO.load(model_a_path, env=vec_env)
+            # Clear rollout buffer to save memory
+            if hasattr(model_a, "rollout_buffer"):
+                model_a.rollout_buffer = None
+        else:
+            model_a = None
+            
+        if model_b_path:
+            model_b = MaskablePPO.load(model_b_path, env=vec_env)
+            # Clear rollout buffer to save memory
+            if hasattr(model_b, "rollout_buffer"):
+                model_b.rollout_buffer = None
+        else:
+            model_b = None
+        
+        obs = vec_env.reset()
+        
+        # Precompute environment indices for each configuration
+        config1_indices = list(range(n_envs_config1))
+        config2_indices = list(range(n_envs_config1, total_envs))
+        
+        # Run until we have enough games for each configuration
+        while config1_games < n_half or config2_games < n_half:
+            action_masks = [vec_env.env_method("get_action_mask", indices=[i])[0] for i in range(total_envs)]
+            action_masks = np.stack(action_masks)
+            
+            # Initialize actions array
+            actions = np.zeros(total_envs, dtype=int)
+            
+            # Batch predict for Config1 (Model A)
+            if model_a and config1_indices:
+                config1_obs = {key: obs[key][config1_indices] for key in obs.keys()}
+                config1_masks = action_masks[config1_indices]
+                config1_actions, _ = model_a.predict(config1_obs, action_masks=config1_masks, deterministic=True)
+                actions[config1_indices] = config1_actions
+            elif not model_a and config1_indices:
+                # Random actions for Config1
+                for i in config1_indices:
+                    valid_actions = np.flatnonzero(action_masks[i])
+                    actions[i] = np.random.choice(valid_actions) if len(valid_actions) > 0 else 0
+            
+            # Batch predict for Config2 (Model B)
+            if model_b and config2_indices:
+                config2_obs = {key: obs[key][config2_indices] for key in obs.keys()}
+                config2_masks = action_masks[config2_indices]
+                config2_actions, _ = model_b.predict(config2_obs, action_masks=config2_masks, deterministic=True)
+                actions[config2_indices] = config2_actions
+            elif not model_b and config2_indices:
+                # Random actions for Config2
+                for i in config2_indices:
+                    valid_actions = np.flatnonzero(action_masks[i])
+                    actions[i] = np.random.choice(valid_actions) if len(valid_actions) > 0 else 0
+            
+            obs, rewards, dones, infos = vec_env.step(actions)
+            
+            for i, done in enumerate(dones):
+                if done:
+                    # Determine which config this env belongs to
+                    is_config1 = i < n_envs_config1
+                    
+                    if is_config1 and config1_games < n_half:
+                        config1_games += 1
+                        if "winners" in infos[i] and 0 in infos[i]["winners"]:
+                            config1_wins += 1
+                    elif not is_config1 and config2_games < n_half:
+                        config2_games += 1
+                        if "winners" in infos[i] and 0 in infos[i]["winners"]:
+                            config2_wins += 1
+                    
+                    total_games = config1_games + config2_games
+                    if total_games % 10 == 0 or (config1_games == n_half and config2_games == n_half):
+                        print(f"Progress: {total_games}/{n_total_games} | Config1 (A as P0): {config1_games}/{n_half} | Config2 (B as P0): {config2_games}/{n_half}", end="\r")
+        
+        print()  # New line after progress
+        
+    finally:
+        vec_env.close()
+    
+    # --- Aggregation ---
+    wr_a_solo = config1_wins / config1_games if config1_games > 0 else 0
+    wr_b_solo = config2_wins / config2_games if config2_games > 0 else 0
+    
+    print("\n" + "="*40)
+    print(f"FINAL RESULTS")
+    print("="*40)
     print(f"1. When A is Solo (vs 2xB): A wins {wr_a_solo:.1%}")
-    print(f"2. When B is Solo (vs 2xA): B wins {wr_b_solo:.1%} (=> A team wins {1-wr_b_solo:.1%})")
+    print(f"2. When B is Solo (vs 2xA): A wins {1-wr_b_solo:.1%}")
     print("-" * 40)
     
-    # Final Score: Average of "A winning as Solo" and "A winning as Team (meaning B lost)"
-    # This is a bit heuristic but gives a single number.
     combined_score = (wr_a_solo + (1.0 - wr_b_solo)) / 2
     print(f"Combined Score (A Performance): {combined_score:.1%}")
     print("="*40)
