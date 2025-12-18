@@ -247,7 +247,7 @@ class KuhhandelEnv(gym.Env):
         if scores[self.rl_agent_id] == max(scores.values()):
             return reward + 7.5
 
-        return reward
+        return min(reward,5)
 
     def get_observation_for_player(self, player_id: int) -> dict:
         """
