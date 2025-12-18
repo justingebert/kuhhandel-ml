@@ -388,8 +388,8 @@ class Game:
         self.last_auction_payment_card_count = len(payment_cards)
 
         for observer in self.players: #if observer aint got no knowledge about no payer we take that mans knowledge about mr reciever
-            if self.money_knowledge[observer][payer] == 0:
-                self.money_knowledge[observer][receiver] = 0
+            if self.money_knowledge[observer.player_id][payer.player_id] == 0:
+                self.money_knowledge[observer.player_id][receiver.player_id] = 0
         
         return True
 
@@ -470,8 +470,8 @@ class Game:
 
         for observer in self.players: #Loop that clears knowledge of the money from trades to outstanding players
             if observer not in [self.trade_initiator, self.trade_target]:
-                self.money_knowledge[observer][self.trade_initiator] = 0
-                self.money_knowledge[observer][self.trade_target] = 0
+                self.money_knowledge[observer.player_id][self.trade_initiator] = 0
+                self.money_knowledge[observer.player_id][self.trade_target] = 0
 
     def choose_cow_trade_animal(self, animal_type: AnimalType):
         self.trade_animal_type = animal_type
@@ -615,7 +615,7 @@ class Game:
 
         for observed in self.players: #Restore Money knowledge if brokie emerges
             if len(observed.money) == 0:
-                self.money_knowledge[:,observed] = 1
+                self.money_knowledge[:,observed.player_id] = 1
 
         # If deck is empty, automatically skip players with no valid actions
         # (those who only have complete sets)
