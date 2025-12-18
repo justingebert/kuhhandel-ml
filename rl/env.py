@@ -141,9 +141,6 @@ class KuhhandelEnv(gym.Env):
         # Continue playing until the RL agent needs to make another decision
         self._play_until_next_decision()
 
-        # Update money beliefs again after other players played
-        self._update_money_beliefs()
-
         terminated = self.game.is_game_over()
         truncated = self.episode_step >= self.max_steps
 
