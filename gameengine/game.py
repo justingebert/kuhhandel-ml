@@ -1,6 +1,7 @@
 import random
 from typing import List, Dict, Optional, Any
 from enum import Enum
+import numpy as np
 
 from .Animal import AnimalCard, AnimalType
 from .Money import MoneyCard, MoneyDeck
@@ -74,6 +75,10 @@ class Game:
 
         # History for ML training
         self.action_history: List[Dict[str, Any]] = []
+        
+        #Moneyknowledge Table
+        self.money_knowledge = np.ones((num_players, num_players)) #at the beginning everyone knows everyones money 
+
 
     def setup(self):
         """Initialize the game."""
@@ -381,6 +386,10 @@ class Game:
         
         # Track card info for observation
         self.last_auction_payment_card_count = len(payment_cards)
+
+        for observer in self.players: #if observer aint got no knowledge about no payer we take that mans knowledge about mr reciever
+            if self.money_knowledge[observer][payer] == 0:
+                self.money_knowledge[observer][receiver] = 0
         
         return True
 
@@ -459,6 +468,10 @@ class Game:
 
         self.phase = GamePhase.COW_TRADE_CHOOSE_ANIMAL
 
+        for observer in self.players: #Loop that clears knowledge of the money from trades to outstanding players
+            if observer not in [self.trade_initiator, self.trade_target]:
+                self.money_knowledge[observer][self.trade_initiator] = 0
+                self.money_knowledge[observer][self.trade_target] = 0
 
     def choose_cow_trade_animal(self, animal_type: AnimalType):
         self.trade_animal_type = animal_type
@@ -598,36 +611,26 @@ class Game:
 
         if self.is_game_over():
             self.phase = GamePhase.GAME_OVER
-        else:
-            self.phase = GamePhase.PLAYER_TURN_CHOICE
+        self.phase = GamePhase.PLAYER_TURN_CHOICE
 
-            # If deck is empty, automatically skip players with no valid actions
-            # (those who only have complete sets)
-            if not self.animal_deck:
-                max_skips = self.num_players  # Safety to prevent infinite loop
-                skips = 0
-                while skips < max_skips:
-                    valid_actions = self.get_valid_actions()
-                    if valid_actions or self.is_game_over():
-                        break
-                    # Skip this player - they have only complete sets
-                    self.current_player_idx = (self.current_player_idx + 1) % self.num_players
-                    self.round_number += 1
-                    skips += 1
+        for observed in self.players: #Restore Money knowledge if brokie emerges
+            if len(observed.money) == 0:
+                self.money_knowledge[:,observed] = 1
 
-                # Double-check if game is now over after skipping
-                if self.is_game_over():
-                    self.phase = GamePhase.GAME_OVER
-                elif not self.get_valid_actions():
-                     # DEADLOCK DIAGNOSIS
-                     print(f"\n!!! DEADLOCK DETECTED !!!", flush=True)
-                     print(f"Reproduce with SEED: {self.seed}", flush=True)
-                     print(f"Round: {self.round_number}", flush=True)
-                     for p in self.players:
-                         print(f"P{p.player_id}: {p.get_animal_counts()}", flush=True)
-                     print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", flush=True)
-                     
-                     raise TimeoutError("Deadlock detected")
+        # If deck is empty, automatically skip players with no valid actions
+        # (those who only have complete sets)
+        if not self.animal_deck:
+            max_skips = self.num_players  # Safety to prevent infinite loop
+            skips = 0
+            while skips < max_skips:
+                valid_actions = self.get_valid_actions()
+                if valid_actions or self.is_game_over():
+                    break
+                # Skip this player - they have only complete sets
+                self.current_player_idx = (self.current_player_idx + 1) % self.num_players
+                self.round_number += 1
+                skips += 1
+
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
