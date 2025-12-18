@@ -138,9 +138,6 @@ class KuhhandelEnv(gym.Env):
         # execute the RL agent's action
         self.controller.step()
 
-        # Update money beliefs based on new actions
-        self._update_money_beliefs()
-
         # Continue playing until the RL agent needs to make another decision
         self._play_until_next_decision()
 
