@@ -74,7 +74,7 @@ def run_game():
         if current_history_len > prev_history_len:
             for i in range(prev_history_len, current_history_len):
                 entry = env.game.action_history[i]
-                print(f"[AI Step {turn_count} | Round {entry['round']}] Action: {entry['action']} | Details: {entry['details']}")
+                print(f"[Step {turn_count} | Round {entry['round']}] Action: {entry['action']} | Details: {entry['details']}")
         else:
             # Fallback if no actions logic (shouldn't happen usually)
             pass
