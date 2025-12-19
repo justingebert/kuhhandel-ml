@@ -220,7 +220,7 @@ class KuhhandelEnv(gym.Env):
                         prev_action = self.game.action_history[j]
                         if prev_action["action"] == "bid":
                             previous_high_bid = prev_action["details"]["amount"]
-                            if prev_action["player"] == self.rl_agent_id: #selbstüberbieten stoppen
+                            if prev_action["details"]["player"] == self.rl_agent_id: #selbstüberbieten stoppen
                                 reward -= 0.1
                             break
                         elif prev_action["action"] == "start_auction":
