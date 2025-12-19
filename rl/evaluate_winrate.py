@@ -1,6 +1,7 @@
 import argparse
 import functools
 import multiprocessing
+import time
 from pathlib import Path
 import numpy as np
 import gymnasium as gym
@@ -73,6 +74,7 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
     Both run simultaneously, eliminating sequential overhead and cache misses.
     """
     
+    start_time = time.time()
     n_half = n_total_games // 2
     total_envs = min(n_total_games, multiprocessing.cpu_count(), 16)
     
@@ -193,12 +195,15 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
         vec_env.close()
     
     # --- Aggregation ---
+    elapsed_time = time.time() - start_time
+    
     wr_a_solo = config1_wins / config1_games if config1_games > 0 else 0
     wr_b_solo = config2_wins / config2_games if config2_games > 0 else 0
     
     print("\n" + "="*40)
     print(f"FINAL RESULTS")
     print("="*40)
+    print(f"Total Time: {elapsed_time:.2f}s ({elapsed_time/n_total_games*1000:.1f}ms per game)")
     print(f"1. When A is Solo (vs 2xB): A wins {wr_a_solo:.1%}")
     print(f"2. When B is Solo (vs 2xA): A wins {1-wr_b_solo:.1%}")
     print("-" * 40)

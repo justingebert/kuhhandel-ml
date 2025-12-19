@@ -209,6 +209,27 @@ class KuhhandelEnv(gym.Env):
                     reward += 0.1
                 elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
                     reward -= 0.05
+            
+            # Penalty for excessive overbidding (>10 above previous high bid)
+            elif a_type == "bid":
+                if details["player"] == self.rl_agent_id:
+                    bid_amount = details["amount"]
+                    # Find the previous high bid before this bid
+                    previous_high_bid = 0
+                    for j in range(i - 1, -1, -1):
+                        prev_action = self.game.action_history[j]
+                        if prev_action["action"] == "bid":
+                            previous_high_bid = prev_action["details"]["amount"]
+                            break
+                        elif prev_action["action"] == "start_auction":
+                            # No previous bids in this auction
+                            break
+                    
+                    # Apply penalty if overbid by more than 10
+                    overbid_amount = bid_amount - previous_high_bid
+                    if overbid_amount > 10:
+                        # Small penalty scaled by how much over 10 they bid
+                        reward -= 0.1 * (overbid_amount - 10) / 100
                     
         self.last_reward_history_idx = current_history_len
 
