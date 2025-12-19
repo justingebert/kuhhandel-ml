@@ -183,7 +183,7 @@ class KuhhandelEnv(gym.Env):
 
         # Money Dominance Reward: Small bonus for holding >50% of circulating money
         total_money_in_play = sum(p.get_total_money() for p in self.game.players)
-        if total_money_in_play > 0 and self.game.donkeys_revealed > 0:
+        if total_money_in_play > 0:# and self.game.donkeys_revealed > 0:
             rl_money = self.game.players[self.rl_agent_id].get_total_money()
             if rl_money > 0.5 * total_money_in_play:
                 reward += 0.05
@@ -202,6 +202,13 @@ class KuhhandelEnv(gym.Env):
             elif a_type == "auctioneer_gets_free":
                 if details["auctioneer"] == self.rl_agent_id:
                     reward += 0.2
+                else:
+                    reward -= 0.2
+            elif a_type == "auctioneer_buys": #wörs
+                if details["bidder"] == self.rl_agent_id:
+                    reward += 0.1
+                elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
+                    reward -= 0.05
                     
         self.last_reward_history_idx = current_history_len
 
@@ -232,6 +239,8 @@ class KuhhandelEnv(gym.Env):
                 # If received 500+, can offset the penalty entirely
                 money_compensation = 0.15 * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
+                if len(self.game.animal_deck) > 0: #additional peneltry for bad trades while auctioning was possible
+                    reward -= 0.1
 
         if not terminated:
             return reward
