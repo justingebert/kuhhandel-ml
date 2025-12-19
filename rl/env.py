@@ -220,6 +220,8 @@ class KuhhandelEnv(gym.Env):
                         prev_action = self.game.action_history[j]
                         if prev_action["action"] == "bid":
                             previous_high_bid = prev_action["details"]["amount"]
+                            if prev_action["player"] == self.rl_agent_id: #selbstüberbieten stoppen
+                                reward -= 0.1
                             break
                         elif prev_action["action"] == "start_auction":
                             # No previous bids in this auction
@@ -229,7 +231,7 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= 0.1 * (overbid_amount - 10) / 100
+                        reward -= 0.3 * (overbid_amount - 10) / 100
                     
         self.last_reward_history_idx = current_history_len
 
