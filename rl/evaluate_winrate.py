@@ -79,7 +79,7 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
     total_envs = min(n_total_games, multiprocessing.cpu_count(), 16)
     
     # Split environments 40/60: Config2 needs more resources (2x model opponents)
-    if model_a_path:
+    if not model_b_path:
         n_envs_config1 = int(total_envs * 0.4)  # A vs Random (faster)
     else:
         n_envs_config1 = int(total_envs / 2)  # Random vs A (slower, 2x models in opponents)
