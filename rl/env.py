@@ -205,7 +205,7 @@ class KuhhandelEnv(gym.Env):
                 else:
                     reward -= 0.2
             elif a_type == "auctioneer_buys": #wörs
-                if details["bidder"] == self.rl_agent_id:
+                if details["to"] == self.rl_agent_id:
                     reward += 0.1
                 elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
                     reward -= 0.05
