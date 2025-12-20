@@ -1,0 +1,49 @@
+Starting Self-Play Training with 32 parallel environments...
+Using cpu device
+
+--- Generation 1 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 182      |
+|    ep_rew_mean     | -34.3    |
+| time/              |          |
+|    fps             | 4117     |
+|    iterations      | 1        |
+|    time_elapsed    | 15       |
+|    total_timesteps | 65536    |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 182        |
+|    ep_rew_mean          | -32        |
+| time/                   |            |
+|    fps                  | 543        |
+|    iterations           | 2          |
+|    time_elapsed         | 240        |
+|    total_timesteps      | 131072     |
+| train/                  |            |
+|    approx_kl            | 0.03306898 |
+|    clip_fraction        | 0.215      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -1.23      |
+|    explained_variance   | -0.00167   |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.546      |
+|    n_updates            | 10         |
+|    policy_gradient_loss | -0.0381    |
+|    value_loss           | 2.59       |
+----------------------------------------
+Saved generation 1 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_1
+Time elapsed: 7.55 mins
+
+--- Generation 2 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 177      |
+|    ep_rew_mean     | -28.3    |
+| time/              |          |
+|    fps             | 989      |
+|    iterations      | 1        |
+|    time_elapsed    | 66       |
+|    total_timesteps | 196608   |
+---------------------------------
