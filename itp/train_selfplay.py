@@ -61,8 +61,8 @@ SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 5
-STEPS_PER_GEN = 90000  
+N_GENERATIONS = 3
+STEPS_PER_GEN = 10000  
 N_ENVS = min(multiprocessing.cpu_count(), 64) #use available cores up to a maximum of 16
 
 # Opponent Distribution
