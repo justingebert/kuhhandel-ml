@@ -63,7 +63,7 @@ FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
 N_GENERATIONS = 100
 STEPS_PER_GEN = 120000  
-N_ENVS = min(multiprocessing.cpu_count(), 64) #use available cores up to a maximum of 16
+N_ENVS = min(multiprocessing.cpu_count(), 32) #use available cores up to a maximum of 16
 
 # Opponent Distribution
 PROB_RANDOM = 0.05
@@ -178,6 +178,10 @@ def main():
         print(f"Saved generation {gen} to {pool_path}")
         
         model.save(LATEST_MODEL_PATH)
+        with open(f"gen{gen}.txt", "w"):
+            pass
+        if gen>1:
+            os.remove(f"gen{gen-1}.txt")
 
         # Print interim timing
         elapsed_so_far = time.time() - start_time
