@@ -1,5 +1,5 @@
 #! /bin/bash
-file='/home/jnn.aurich/kuhhandel-ml/itp/train_self.py' # adjust to run other script
+file='/home/jnn.aurich/kuhhandel-ml/itp/train_selfplay.py' # adjust to run other script
 
 # echo "first  command line parameter: "$1
 # echo "second command line parameter: "$2
