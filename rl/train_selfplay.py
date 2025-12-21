@@ -3,11 +3,44 @@ import glob
 import random
 import numpy as np
 import gymnasium as gym
+from pathlib import Path
+import multiprocessing
+import time
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
+from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecCheckNan
+import torch
+
+# Fix for Simplex error due to floating point precision issues
+
+def robust_apply_masking(self, masks: torch.Tensor):
+    # Access logits directly
+    if hasattr(self, 'logits'):
+        logits = self.logits
+    elif hasattr(self, 'probs'):
+         logits = torch.log(self.probs + 1e-8)
+    else:
+        raise RuntimeError("Categorical distribution has no logits or probs attribute.")
+
+    HUGE_NEG = -1e8
+    if masks is not None and logits.numel() > 0:
+        # Handle numpy masks
+        if isinstance(masks, np.ndarray):
+            masks = torch.from_numpy(masks).to(logits.device)
+        
+        # Apply masking
+        masked_logits = torch.where(masks.bool(), logits, torch.tensor(HUGE_NEG).to(logits.device))
+        
+        # Re-initialize the Categorical distribution with validate_args=False
+        # This bypasses the strict Simplex check that fails on 1e-7 errors
+        torch.distributions.Categorical.__init__(self, logits=masked_logits, validate_args=False)
+    
+    return self
+
+maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
@@ -17,23 +50,28 @@ from tests.demo_game import RandomAgent
 def mask_valid_action(env: gym.Env) -> np.ndarray:
     return env.unwrapped.get_action_mask()
 
-LOG_DIR = "logs"
-MODELS_DIR = "models"
-SELFPLAY_DIR = "models/selfplay_pool"
-LATEST_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_latest"
-FINAL_MODEL_PATH = f"{MODELS_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 10
-STEPS_PER_GEN = 20000  
-N_ENVS = 16  # cores
+SCRIPT_DIR = Path(__file__).resolve().parent
+MODEL_DIR = SCRIPT_DIR / "models"
+
+LOG_DIR = "logs"
+SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
+LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
+FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
+
+N_GENERATIONS = 30
+STEPS_PER_GEN = 30000  
+N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
-PROB_RANDOM = 0
+PROB_RANDOM = 0.05
 
 MODEL_CACHE = {}
 
+DEVICE = "cpu" # "cuda"
+
 os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(SELFPLAY_DIR, exist_ok=True)
 
 
@@ -45,7 +83,11 @@ def get_cached_model(model_path):
     
     if name not in MODEL_CACHE:
         try:
-            model = MaskablePPO.load(model_path, env=None, device="auto")
+            model = MaskablePPO.load(model_path, env=None, device=DEVICE)
+            
+            if hasattr(model, "rollout_buffer"): #Buffer safes past moves required for training not for simulation
+                model.rollout_buffer = None
+                
             MODEL_CACHE[name] = model
         except Exception as e:
             print(f"Error loading model {name}: {e}")
@@ -92,18 +134,27 @@ def make_env(rank: int, opponent_generator_func):
 
 def main():
     print(f"Starting Self-Play Training with {N_ENVS} parallel environments...")
-    
+
     # create n envs for parallel training
     env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
     vec_env = SubprocVecEnv(env_fns) 
 
+    # [256, 256] neurons to handle sparse/large observation space
+    policy_kwargs = dict(net_arch=[256, 256])
     
-    # load existing pr create new one
+    # load existing or create new one
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
-        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device="auto")
+        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE)
     else:
-        model = MaskablePPO("MultiInputPolicy", vec_env, verbose=1, device="auto")
+        model = MaskablePPO(
+            "MultiInputPolicy", 
+            vec_env,
+            verbose=1, 
+            device=DEVICE,
+            policy_kwargs=policy_kwargs
+        )
     
+    start_time = time.time()
     
     for gen in range(1, N_GENERATIONS + 1):
         print(f"\n--- Generation {gen} ---")
@@ -116,11 +167,16 @@ def main():
         print(f"Saved generation {gen} to {pool_path}")
         
         model.save(LATEST_MODEL_PATH)
+
+        # Print interim timing
+        elapsed_so_far = time.time() - start_time
+        print(f"Time elapsed: {elapsed_so_far/60:.2f} mins")
         
-    model.save(FINAL_MODEL_PATH)
-    print(f"Training loop finished. Model saved to {FINAL_MODEL_PATH}")
+    total_time = time.time() - start_time
+    print(f"Training loop finished in {total_time/60:.2f} minutes. Model saved to {FINAL_MODEL_PATH}")
     vec_env.close()
 
 if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
+    multiprocessing.freeze_support() # Windows support
     main()

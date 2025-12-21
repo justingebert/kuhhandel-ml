@@ -15,6 +15,8 @@ from rl.rl_agent import RLAgent
 
 class KuhhandelEnv(gym.Env):
 
+    GAME_PHASE_MAP = {phase: i for i, phase in enumerate(GamePhase)}
+
     def __init__(self, num_players: int = 3, opponent_generator=None):
         super().__init__()
 
@@ -37,7 +39,7 @@ class KuhhandelEnv(gym.Env):
             ),
 
             "money_opponents": MultiDiscrete(
-                np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS, dtype=np.int64)
+                np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS + 1, dtype=np.int64)
             ),
 
             # deck + donkeys
@@ -47,6 +49,9 @@ class KuhhandelEnv(gym.Env):
             # auction info
             "auction_animal_type": Discrete(N_ANIMALS + 1),  # 0..N_ANIMALS-1, N_ANIMALS = none
             "auction_high_bid": Discrete(MAX_MONEY + 1),  # 0..MAX_MONEY
+            "auction_initiator": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
+            "auction_high_bidder": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
+            "auction_payment_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1), 
 
             # cow trade info
             "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
@@ -54,6 +59,11 @@ class KuhhandelEnv(gym.Env):
             "trade_animal_type": Discrete(N_ANIMALS + 1),
             # Card counts are visible, exact values are hidden
             "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
+
+            # Money tracking: per opponent, values 0-470 (money levels) or 471 (unknown)
+            "known_player_money": MultiDiscrete(
+                np.full(N_PLAYERS - 1, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
+            ),
         })
 
         self.game: Optional[Game] = None
@@ -61,12 +71,17 @@ class KuhhandelEnv(gym.Env):
         self.agents: List[Agent] = []
         self.rl_agent_id = 0  # RL agent is always player 0
 
+        self.money_known = np.ones((N_PLAYERS, N_PLAYERS), dtype=bool)
+        self.last_action_idx = 0
+
         self.episode_step = 0
+
         self.max_steps = 500
+        self.last_quartet_count = 0
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
-
+        
         self.game = Game(num_players=self.num_players, seed=seed)
         self.game.setup()
 
@@ -84,6 +99,12 @@ class KuhhandelEnv(gym.Env):
         self.controller = GameController(self.game, self.agents)
 
         self.episode_step = 0
+        self.last_quartet_count = 0
+        self.money_known = np.ones((self.num_players, self.num_players), dtype=bool)
+        self.last_action_idx = 0
+        
+        # Track history index specifically for rewards
+        self.last_reward_history_idx = 0
 
         observation = self._get_observation()
         info = {}
@@ -122,12 +143,18 @@ class KuhhandelEnv(gym.Env):
 
         obs = self._get_observation()
         info = {}
+        
+        if terminated:
+            scores = self.game.get_scores()
+            if scores:
+                max_s = max(scores.values())
+                info["winners"] = [p for p, s in scores.items() if s == max_s]
 
         return obs, reward, terminated, truncated, info
 
     def _play_until_next_decision(self):
         """Advance the game until the RL agent needs to make a decision."""
-        max_steps = 100  # Safety limit to prevent infinite loops
+        max_steps = 200  # Safety limit
 
         for _ in range(max_steps):
             if self.game.is_game_over():
@@ -144,6 +171,74 @@ class KuhhandelEnv(gym.Env):
 
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
+
+        #Penalty for vulnerability
+        if self.game.players[self.rl_agent_id].get_total_money() == 0:
+            reward -= 0.2
+
+        # Money Dominance Reward: Small bonus for holding >50% of circulating money
+        total_money_in_play = sum(p.get_total_money() for p in self.game.players)
+        if total_money_in_play > 0:# and self.game.donkeys_revealed > 0:
+            rl_money = self.game.players[self.rl_agent_id].get_total_money()
+            if rl_money > 0.5 * total_money_in_play:
+                reward += 0.05
+
+        # Reward for winning auctions (flat bonus)
+        current_history_len = len(self.game.action_history)
+        for i in range(self.last_reward_history_idx, current_history_len):
+            action_entry = self.game.action_history[i]
+            a_type = action_entry["action"]
+            details = action_entry["details"]
+            
+            # Check for auction wins
+            if a_type == "high_bidder_wins":
+                if details["bidder"] == self.rl_agent_id:
+                    reward += 0.1
+            elif a_type == "auctioneer_gets_free":
+                if details["auctioneer"] == self.rl_agent_id:
+                    reward += 0.2
+                else:
+                    reward -= 0.2
+            elif a_type == "auctioneer_buys": #wörs
+                if details["to"] == self.rl_agent_id:
+                    reward += 0.1
+                elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
+                    reward -= 0.05
+            
+            # Penalty for excessive overbidding (>10 above previous high bid)
+            elif a_type == "bid":
+                if details["player"] == self.rl_agent_id:
+                    bid_amount = details["amount"]
+                    # Find the previous high bid before this bid
+                    previous_high_bid = 0
+                    for j in range(i - 1, -1, -1):
+                        prev_action = self.game.action_history[j]
+                        if prev_action["action"] == "bid":
+                            previous_high_bid = prev_action["details"]["amount"]
+                            if prev_action["details"]["player"] == self.rl_agent_id: #selbstüberbieten stoppen
+                                reward -= 0.1
+                            break
+                        elif prev_action["action"] == "start_auction":
+                            # No previous bids in this auction
+                            break
+                    
+                    # Apply penalty if overbid by more than 10
+                    overbid_amount = bid_amount - previous_high_bid
+                    if overbid_amount > 10:
+                        # Small penalty scaled by how much over 10 they bid
+                        reward -= 0.3 * (overbid_amount - 10) / 100
+                    
+        self.last_reward_history_idx = current_history_len
+
+        # Quartet Bonus: Reward building quartets while the deck is still active
+        rl_player = self.game.players[self.rl_agent_id]
+        current_quartets = sum(1 for c in rl_player.get_animal_counts().values() if c == 4)
+        quartet_diff = current_quartets - self.last_quartet_count
+
+        if len(self.game.animal_deck) > 0 and quartet_diff != 0:
+            reward += quartet_diff * 0.5
+        
+        self.last_quartet_count = current_quartets
 
         # Reward/penalty for cow trade outcomes based on economic efficiency
         if self.game.last_trade_result is not None:
@@ -162,6 +257,8 @@ class KuhhandelEnv(gym.Env):
                 # If received 500+, can offset the penalty entirely
                 money_compensation = 0.15 * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
+                if len(self.game.animal_deck) > 0: #additional peneltry for bad trades while auctioning was possible
+                    reward -= 0.1
 
         if not terminated:
             return reward
@@ -169,10 +266,9 @@ class KuhhandelEnv(gym.Env):
         # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return reward + 1.0
+            return reward + 7.5
 
         return reward
-
 
     def get_observation_for_player(self, player_id: int) -> dict:
         """
@@ -202,11 +298,23 @@ class KuhhandelEnv(gym.Env):
                 opponent_idx = player_idx - 1
                 money_opponents[opponent_idx] = cards
 
+        opponent_money_visibility = np.delete(np.array(self.game.money_knowledge[player_id]), player_id)
+        total_money_other_players = np.delete(np.array([p.get_total_money() for p in self.game.players]), player_id)
+
+        #TODO look if money known makes sense as 471 or if it should be a really high value so its not that close
+        # Convert to money levels (0-470) and mark unknown as MONEY_UNKNOWN (471)
+        money_levels = total_money_other_players // MONEY_STEP
+        known_money = np.where(opponent_money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
+
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
 
+        is_auction = self.game.phase in [GamePhase.AUCTION_BIDDING, GamePhase.AUCTIONEER_DECISION]
+        auction_initiator = self.game.current_player_idx if is_auction else N_PLAYERS
+        auction_high_bidder = self.game.auction_high_bidder if self.game.auction_high_bidder is not None else N_PLAYERS
+
         observation = {
-            "game_phase": self.game.phase.value,
+            "game_phase": self.GAME_PHASE_MAP[self.game.phase],
             "current_player": self.game.current_player_idx,
             "animals": animals,
             "money_own": money,
@@ -215,10 +323,14 @@ class KuhhandelEnv(gym.Env):
             "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
             "auction_high_bid": self.game.auction_high_bid or 0,
+            "auction_initiator": auction_initiator,
+            "auction_high_bidder": auction_high_bidder,
+            "auction_payment_card_count": self.game.last_auction_payment_card_count,
             "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
             "trade_offer_card_count": self.game.trade_offer_card_count,
+            "known_player_money": known_money,
         }
 
         return observation
@@ -358,8 +470,9 @@ max_cards_per_value = max(MoneyDeck.INITIAL_DISTRIBUTION.values()) + 1
 
 # offers/bids as multiples of 10 up to MAX_MONEY
 MONEY_STEP = 10
-MAX_MONEY = 940*5  # might adjust
-N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..MAX_MONEY
+MAX_MONEY = 4700  # total money possible 940 * 5
+N_MONEY_LEVELS = MAX_MONEY // MONEY_STEP + 1  # 0..470 = 471 levels
+MONEY_UNKNOWN = N_MONEY_LEVELS  # Index 471 (the 472nd value)
 
 # ----- ACTION INDICES -----
 # Turn-level actions

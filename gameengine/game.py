@@ -1,6 +1,7 @@
 import random
 from typing import List, Dict, Optional, Any
 from enum import Enum
+import numpy as np
 
 from .Animal import AnimalCard, AnimalType
 from .Money import MoneyCard, MoneyDeck
@@ -56,6 +57,9 @@ class Game:
         self.auction_current_bidder_idx: Optional[int] = None
         self.auction_bidders_passed: set = set()  # Track who has passed this round
 
+        # track last auction payment card count for
+        self.last_auction_payment_card_count: int = 0
+
         # trade state
         self.trade_initiator: Optional[int] = None
         self.trade_target: Optional[int] = None
@@ -63,6 +67,7 @@ class Game:
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
+
 
         # Track last completed trade result for reward calculation
         # (winner_player_id, loser_player_id, animals_transferred, offer, counter_offer, net_payment)
@@ -73,6 +78,10 @@ class Game:
 
         # History for ML training
         self.action_history: List[Dict[str, Any]] = []
+        
+        #Moneyknowledge Table
+        self.money_knowledge = np.ones((num_players, num_players)) #at the beginning everyone knows everyones money 
+
 
     def setup(self):
         """Initialize the game."""
@@ -152,7 +161,18 @@ class Game:
             # If deck is empty and no actions available, but game isn't over,
             # the player must pass (should usually not happen if logic is correct)
             if deck_empty and not actions and not self.is_game_over():
-                pass
+                # If player has no incomplete sets, they are simply done participating
+                has_incomplete_sets = False
+                for animal_type in AnimalType.get_all_types():
+                    if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
+                        has_incomplete_sets = True
+                        break
+
+                if not has_incomplete_sets:
+                    return []
+
+                # If we have incomplete sets but no valid actions, that's a problem (Deadlock)
+                raise ValueError("No Valid Actions for player with incomplete sets")
 
         elif self.phase == GamePhase.AUCTION_BIDDING:
             # Only non-auctioneers can bid during this phase
@@ -167,7 +187,7 @@ class Game:
 
                 total_money = self.players[player_id].get_total_money()
 
-                money_steps_mod10 = range(start_bid%10,total_money%10+1)
+                money_steps_mod10 = range(start_bid//10,total_money//10+1)
 
                 for amount in money_steps_mod10:
                     actions.append(Actions.bid(amount=10*amount))
@@ -275,6 +295,9 @@ class Game:
         self.auction_high_bid = bid_amount
         self.auction_high_bidder = player_id
         self.auction_bids[player_id] = bid_amount
+        
+        # Soft Pass Rule: Reset passes so everyone can bid again
+        self.reset_auction_passes()
 
         self._log_action("bid", {
             "player": player_id,
@@ -291,6 +314,10 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
+            self._log_action("auctioneer_gets_free", {
+                "auctioneer": self.current_player_idx,
+                "animal": self.current_animal.animal_type.display_name
+            })
             self.end_auction()
             return True
 
@@ -319,6 +346,10 @@ class Game:
         if self.auction_high_bidder is None:
             # No bids, auctioneer gets it for free
             self.get_current_player().add_animal(self.current_animal)
+            self._log_action("auctioneer_gets_free", {
+                "auctioneer": self.current_player_idx,
+                "animal": self.current_animal.animal_type.display_name
+            })
             self.end_auction()
             return True
 
@@ -348,6 +379,14 @@ class Game:
 
         payer.remove_money(payment_cards)
         receiver.add_money(payment_cards)
+
+        self.last_auction_payment_card_count = len(payment_cards)
+
+        # if observer aint got no knowledge about no payer we take that mans knowledge about mr receiver
+        for observer in self.players:
+            if self.money_knowledge[observer.player_id][payer.player_id] == 0:
+                self.money_knowledge[observer.player_id][receiver.player_id] = 0
+        
         return True
 
 
@@ -364,6 +403,7 @@ class Game:
         self.auction_high_bid = 0
         self.auction_current_bidder_idx = None
         self.auction_bidders_passed.clear()
+        self.last_auction_payment_card_count = 0
         self._next_turn()
 
     def get_current_decision_player(self) -> int:
@@ -409,18 +449,35 @@ class Game:
         for i in range(self.num_players):
             if i != auctioneer and i not in self.auction_bidders_passed:
                 if self.players[i].get_total_money() >= min_bid:
-                    return True
+                    return False
         
-        return False
+        return True
 
     def choose_cow_trade_opponent(self, target_id: int):
         self.trade_initiator = self.current_player_idx
         self.trade_target = target_id
+        
+        self._log_action("cow_trade_choose_opponent", {
+            "initiator": self.trade_initiator,
+            "target": self.trade_target
+        })
+
         self.phase = GamePhase.COW_TRADE_CHOOSE_ANIMAL
 
+        # Loop that clears knowledge of the money from trades to outstanding players
+        for observer in self.players:
+            if observer not in [self.trade_initiator, self.trade_target]:
+                self.money_knowledge[observer.player_id][self.trade_initiator] = 0
+                self.money_knowledge[observer.player_id][self.trade_target] = 0
 
     def choose_cow_trade_animal(self, animal_type: AnimalType):
         self.trade_animal_type = animal_type
+        
+        self._log_action("cow_trade_choose_animal", {
+            "player": self.current_player_idx,
+            "animal": animal_type.display_name
+        })
+
         self.phase = GamePhase.COW_TRADE_OFFER
 
     def choose_cow_trade_offer(self, amount: int):
@@ -431,11 +488,21 @@ class Game:
             initiator = self.players[self.trade_initiator]
             offer_cards = initiator.select_payment_cards(amount)
             self.trade_offer_card_count = len(offer_cards) if offer_cards else 0
+        
+        self._log_action("cow_trade_offer", {
+            "player": self.trade_initiator,
+            "amount": amount,
+            "cards": self.trade_offer_card_count
+        })
 
         self.phase = GamePhase.COW_TRADE_RESPONSE
 
     def choose_cow_trade_counter_offer(self, amount: int):
         self.trade_counter_offer = amount
+        self._log_action("cow_trade_counter_offer", {
+            "player": self.trade_target,
+            "amount": amount
+        })
 
     def execute_cow_trade(self) -> bool:
         """Execute cow trade using game state after counter offer has been made.
@@ -541,26 +608,26 @@ class Game:
 
         if self.is_game_over():
             self.phase = GamePhase.GAME_OVER
-        else:
-            self.phase = GamePhase.PLAYER_TURN_CHOICE
+        self.phase = GamePhase.PLAYER_TURN_CHOICE
 
-            # If deck is empty, automatically skip players with no valid actions
-            # (those who only have complete sets)
-            if not self.animal_deck:
-                max_skips = self.num_players  # Safety to prevent infinite loop
-                skips = 0
-                while skips < max_skips:
-                    valid_actions = self.get_valid_actions()
-                    if valid_actions or self.is_game_over():
-                        break
-                    # Skip this player - they have only complete sets
-                    self.current_player_idx = (self.current_player_idx + 1) % self.num_players
-                    self.round_number += 1
-                    skips += 1
+        for observed in self.players: #Restore Money knowledge if brokie emerges
+            if len(observed.money) == 0:
+                self.money_knowledge[:,observed.player_id] = 1
 
-                # Double-check if game is now over after skipping
-                if self.is_game_over():
-                    self.phase = GamePhase.GAME_OVER
+        # If deck is empty, automatically skip players with no valid actions
+        # (those who only have complete sets)
+        if not self.animal_deck:
+            max_skips = self.num_players  # Safety to prevent infinite loop
+            skips = 0
+            while skips < max_skips:
+                valid_actions = self.get_valid_actions()
+                if valid_actions or self.is_game_over():
+                    break
+                # Skip this player - they have only complete sets
+                self.current_player_idx = (self.current_player_idx + 1) % self.num_players
+                self.round_number += 1
+                skips += 1
+
 
     def is_game_over(self) -> bool:
         """Check if the game is over.
@@ -575,7 +642,7 @@ class Game:
         for player in self.players:
             animal_counts = player.get_animal_counts()
             for animal_type, count in animal_counts.items():
-                if count != 4:
+                if count > 0 and count != 4:
                     # Incomplete set found - game must continue
                     return False
 
@@ -613,6 +680,7 @@ class Game:
             "animals_remaining": len(self.animal_deck),
             "current_animal": self.current_animal.animal_type.display_name if self.current_animal else None,
             "auction_high_bid": self.auction_high_bid,
+            "auction_payment_card_count": self.last_auction_payment_card_count,
             "players": [
                 {
                     "id": p.player_id,
