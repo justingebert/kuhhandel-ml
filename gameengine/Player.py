@@ -56,7 +56,7 @@ class Player:
             
         for card in self.animals:
             # Normalize by name
-            standard_type = AnimalType[card.animal_type.name]
+            standard_type = AnimalType[card.animal_type.name] #TODO what does this do?
             counts[standard_type] += 1
             
         return counts

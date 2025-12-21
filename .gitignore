@@ -183,7 +183,3 @@ cython_debug/
 logs/
 
 models/
-
-models_64neurons/
-
-models_256neurons_v1/

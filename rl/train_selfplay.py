@@ -15,7 +15,6 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecChec
 import torch
 
 # Fix for Simplex error due to floating point precision issues
-original_apply_masking = maskable_dist.MaskableCategorical.apply_masking
 
 def robust_apply_masking(self, masks: torch.Tensor):
     # Access logits directly
@@ -24,8 +23,7 @@ def robust_apply_masking(self, masks: torch.Tensor):
     elif hasattr(self, 'probs'):
          logits = torch.log(self.probs + 1e-8)
     else:
-        # Fallback - practically shouldn't happen in SB3 PPO
-        logits = torch.tensor([])
+        raise RuntimeError("Categorical distribution has no logits or probs attribute.")
 
     HUGE_NEG = -1e8
     if masks is not None and logits.numel() > 0:
@@ -135,31 +133,22 @@ def make_env(rank: int, opponent_generator_func):
 
 
 def main():
-    # torch.autograd.set_detect_anomaly(True)
     print(f"Starting Self-Play Training with {N_ENVS} parallel environments...")
-    
-    
-    # Define larger network Policy
-    # [256, 256] neurons to handle sparse/large observation space
-    policy_kwargs = dict(net_arch=[256, 256])
+
     # create n envs for parallel training
     env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
     vec_env = SubprocVecEnv(env_fns) 
-    # vec_env = VecCheckNan(vec_env, raise_exception=True)
-    
-    # Define larger network Policy
+
     # [256, 256] neurons to handle sparse/large observation space
     policy_kwargs = dict(net_arch=[256, 256])
-
     
-    # load existing pr create new one
-
+    # load existing or create new one
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
         model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE)
     else:
         model = MaskablePPO(
             "MultiInputPolicy", 
-            vec_env, 
+            vec_env,
             verbose=1, 
             device=DEVICE,
             policy_kwargs=policy_kwargs
@@ -189,5 +178,5 @@ def main():
 
 if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
-    multiprocessing.freeze_support()
+    multiprocessing.freeze_support() # Windows support
     main()

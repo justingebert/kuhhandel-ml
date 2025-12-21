@@ -57,6 +57,9 @@ class Game:
         self.auction_current_bidder_idx: Optional[int] = None
         self.auction_bidders_passed: set = set()  # Track who has passed this round
 
+        # track last auction payment card count for
+        self.last_auction_payment_card_count: int = 0
+
         # trade state
         self.trade_initiator: Optional[int] = None
         self.trade_target: Optional[int] = None
@@ -64,7 +67,7 @@ class Game:
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
-        self.last_auction_payment_card_count: int = 0
+
 
         # Track last completed trade result for reward calculation
         # (winner_player_id, loser_player_id, animals_transferred, offer, counter_offer, net_payment)
@@ -164,18 +167,11 @@ class Game:
                     if player.has_animal_type(animal_type) and not player.has_complete_set(animal_type):
                         has_incomplete_sets = True
                         break
-                
+
                 if not has_incomplete_sets:
                     return []
 
                 # If we have incomplete sets but no valid actions, that's a problem (Deadlock)
-                print(f"DEBUG: Deadlock detected for player {player_id}")
-                print(f"Animals: {player.get_animal_counts()}")
-                print(f"Deck Empty: {deck_empty}")
-                print(f"Game Over: {self.is_game_over()}")
-                # Dump all players to assist debugging
-                for p in self.players:
-                    print(f"P{p.player_id}: {p.get_animal_counts()}")                                   #TODO: remove if issue doesnt continue
                 raise ValueError("No Valid Actions for player with incomplete sets")
 
         elif self.phase == GamePhase.AUCTION_BIDDING:
@@ -383,11 +379,11 @@ class Game:
 
         payer.remove_money(payment_cards)
         receiver.add_money(payment_cards)
-        
-        # Track card info for observation
+
         self.last_auction_payment_card_count = len(payment_cards)
 
-        for observer in self.players: #if observer aint got no knowledge about no payer we take that mans knowledge about mr reciever
+        # if observer aint got no knowledge about no payer we take that mans knowledge about mr receiver
+        for observer in self.players:
             if self.money_knowledge[observer.player_id][payer.player_id] == 0:
                 self.money_knowledge[observer.player_id][receiver.player_id] = 0
         
@@ -468,7 +464,8 @@ class Game:
 
         self.phase = GamePhase.COW_TRADE_CHOOSE_ANIMAL
 
-        for observer in self.players: #Loop that clears knowledge of the money from trades to outstanding players
+        # Loop that clears knowledge of the money from trades to outstanding players
+        for observer in self.players:
             if observer not in [self.trade_initiator, self.trade_target]:
                 self.money_knowledge[observer.player_id][self.trade_initiator] = 0
                 self.money_knowledge[observer.player_id][self.trade_target] = 0
