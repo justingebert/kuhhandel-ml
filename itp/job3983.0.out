@@ -1,0 +1,13 @@
+Starting Self-Play Training with 32 parallel environments...
+
+--- Generation 1 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 188      |
+|    ep_rew_mean     | -25.1    |
+| time/              |          |
+|    fps             | 4318     |
+|    iterations      | 1        |
+|    time_elapsed    | 15       |
+|    total_timesteps | 393216   |
+---------------------------------
