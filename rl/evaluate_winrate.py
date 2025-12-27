@@ -116,7 +116,7 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
     try:
         # Load models for both configurations
         if model_a_path:
-            model_a = MaskablePPO.load(model_a_path, env=vec_env)
+            model_a = MaskablePPO.load(model_a_path, env=vec_env, device='cpu')
             # Clear rollout buffer to save memory
             if hasattr(model_a, "rollout_buffer"):
                 model_a.rollout_buffer = None
@@ -124,7 +124,7 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
             model_a = None
             
         if model_b_path:
-            model_b = MaskablePPO.load(model_b_path, env=vec_env)
+            model_b = MaskablePPO.load(model_b_path, env=vec_env, device='cpu')
             # Clear rollout buffer to save memory
             if hasattr(model_b, "rollout_buffer"):
                 model_b.rollout_buffer = None
