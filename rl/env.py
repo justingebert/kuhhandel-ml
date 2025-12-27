@@ -2,15 +2,15 @@ from typing import Optional, List
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Dict, Discrete, Box
+from gymnasium.spaces import Dict, Discrete, MultiDiscrete
 
 from gameengine import AnimalType, MoneyDeck
 from gameengine.actions import Actions, GameAction
 from gameengine.agent import Agent
 from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
-from rl.agents.random_agent import RandomAgent
-from rl.agents.rl_agent import RLAgent
+from rl.random_agent import RandomAgent
+from rl.rl_agent import RLAgent
 
 
 class KuhhandelEnv(gym.Env):
@@ -29,45 +29,41 @@ class KuhhandelEnv(gym.Env):
             "current_player": Discrete(N_PLAYERS),
 
             # per-player animals: 0..4 of each type (flattened: N_PLAYERS * N_ANIMALS)
-            # Normalized by 4.0
-            "animals": Box(low=0.0, high=1.0, shape=(N_PLAYERS * N_ANIMALS,), dtype=np.float32),
+            "animals": MultiDiscrete(
+                np.full(N_PLAYERS * N_ANIMALS, 5, dtype=np.int64)
+            ),
 
-            # own money histogram (normalized by max_cards_per_value)
-            "money_own": Box(low=0.0, high=1.0, shape=(len(MONEY_VALUES),), dtype=np.float32),
+            # own money histogram
+            "money_own": MultiDiscrete(
+                np.full(len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
+            ),
 
-            # opponent money card counts (normalized by MoneyDeck.AMOUNT_MONEYCARDS)
-            "money_opponents": Box(low=0.0, high=1.0, shape=(N_PLAYERS - 1,), dtype=np.float32),
+            "money_opponents": MultiDiscrete(
+                np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS + 1, dtype=np.int64)
+            ),
 
             # deck + donkeys
-            "deck_size": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 41
-            "donkeys_revealed": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 5
+            "deck_size": Discrete(41),
+            "donkeys_revealed": Discrete(5),
 
             # auction info
             "auction_animal_type": Discrete(N_ANIMALS + 1),  # 0..N_ANIMALS-1, N_ANIMALS = none
-            "auction_animal_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 1000
-            "auction_high_bid": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),  # Norm MAX_MONEY
+            "auction_high_bid": Discrete(MAX_MONEY + 1),  # 0..MAX_MONEY
             "auction_initiator": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
             "auction_high_bidder": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
-            "auction_payment_card_count": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm MoneyDeck.AMOUNT_MONEYCARDS
+            "auction_payment_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1), 
 
             # cow trade info
             "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
-            "trade_animal_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 1000
             # Card counts are visible, exact values are hidden
-            "trade_offer_card_count": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm MoneyDeck.AMOUNT_MONEYCARDS
+            "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
 
-            # Money tracking: per player (index 0 is self), values 0-470 (money levels) or 471 (unknown)
-            # Normalized by N_MONEY_LEVELS. Unknown is represented as -1.0
-            "players_money": Box(low=-1.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
-
-            # Score components (Normalized floats 0.0-1.0):
-            # 1. Number of quartets (Multiplier) - Max 10 per player
-            "player_quartets": Box(low=0.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
-            
-            # 2. Potential Value (Sum of all held cards) - Max ~15400
-            "player_potential_value": Box(low=0.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
+            # Money tracking: per opponent, values 0-470 (money levels) or 471 (unknown)
+            "known_player_money": MultiDiscrete(
+                np.full(N_PLAYERS - 1, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
+            ),
         })
 
         self.game: Optional[Game] = None
@@ -156,13 +152,6 @@ class KuhhandelEnv(gym.Env):
 
         return obs, reward, terminated, truncated, info
 
-    def _log_normalize(self, value: float, max_value: float) -> float:
-        """
-        Logarithmic normalization: log(value + 1) / log(max_value + 1).
-        Amplifies differences at the lower end (e.g., 10 vs 20) while compressing high values.
-        """
-        return np.log(value + 1) / np.log(max_value + 1)
-
     def _play_until_next_decision(self):
         """Advance the game until the RL agent needs to make a decision."""
         max_steps = 200  # Safety limit
@@ -237,7 +226,7 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= (overbid_amount - 10) / 100
+                        reward -= 0.3 * (overbid_amount - 10) / 100
                     
         self.last_reward_history_idx = current_history_len
 
@@ -294,60 +283,44 @@ class KuhhandelEnv(gym.Env):
         """
         all_animal_types = AnimalType.get_all_types()
 
+        # Flattened animals array - ROTATED so observer's animals are at index 0-9
         animals = np.zeros(N_PLAYERS * N_ANIMALS, dtype=np.int64)
+        for relative_idx in range(N_PLAYERS):
+            # Calculate absolute player index
+            absolute_idx = (player_id + relative_idx) % N_PLAYERS
+            player = self.game.players[absolute_idx]
+            counts = player.get_animal_counts()
+            for animal_idx, animal_type in enumerate(all_animal_types):
+                flat_idx = relative_idx * N_ANIMALS + animal_idx
+                animals[flat_idx] = counts.get(animal_type, 0)
+
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
         observer_player = self.game.players[player_id]
         histogram = observer_player.get_money_histogram(MONEY_VALUES)
         for value_idx, count in enumerate(histogram.values()):
-            money[value_idx] = count
+             money[value_idx] = count
 
+        # Opponents' money card counts - ROTATED
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
-
-        money_visibility_list = []
-        total_money_list = []
-        quartets_list = []
-        potential_value_list = []
-
-        for relative_idx in range(N_PLAYERS):
+        for relative_idx in range(1, N_PLAYERS):  # Skip observer (relative 0)
             absolute_idx = (player_id + relative_idx) % N_PLAYERS
             player = self.game.players[absolute_idx]
-
-            counts = player.get_animal_counts()
-            for animal_idx, animal_type in enumerate(all_animal_types):
-                flat_idx = relative_idx * N_ANIMALS + animal_idx
-                animals[flat_idx] = counts[animal_type]
-
             money_opponents[relative_idx - 1] = len(player.money)
 
-            money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
-
-            total_money_list.append(player.get_total_money())
-
-            quartet_count = sum(1 for count in player.get_animal_counts().values() if count == 4)
-            quartets_list.append(quartet_count)
-
-            # Potential Value: Sum of value of ALL held cards
-            p_val = 0
-            # iterate over animal types to calculate value
-            for animal_t in AnimalType.get_all_types():
-                count = player.get_animal_count(animal_t)
-                p_val += count * animal_t.points
-            potential_value_list.append(p_val)
+        # Known opponent money - ROTATED
+        opponent_money_visibility_list = []
+        total_money_list = []
+        for relative_idx in range(1, N_PLAYERS):
+            absolute_idx = (player_id + relative_idx) % N_PLAYERS
+            opponent_money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
+            total_money_list.append(self.game.players[absolute_idx].get_total_money())
         
-        money_visibility = np.array(money_visibility_list)
-        total_money_players = np.array(total_money_list)
+        opponent_money_visibility = np.array(opponent_money_visibility_list)
+        total_money_other_players = np.array(total_money_list)
 
-        # Money Normalization
-        # If visible: money // MONEY_STEP / N_MONEY_LEVELS
-        # If unknown: -1.0
-        players_money_normalized = np.zeros(N_PLAYERS, dtype=np.float32)
-        for i in range(N_PLAYERS):
-            if money_visibility[i]:
-                # Log scale for money to better distinguish low values
-                players_money_normalized[i] = self._log_normalize(total_money_players[i], MAX_MONEY)
-            else:
-                players_money_normalized[i] = -1.0
-
+        # Convert to money levels (0-470) and mark unknown as MONEY_UNKNOWN (471)
+        money_levels = total_money_other_players // MONEY_STEP
+        known_money = np.where(opponent_money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
 
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
@@ -361,33 +334,21 @@ class KuhhandelEnv(gym.Env):
         observation = {
             "game_phase": self.GAME_PHASE_MAP[self.game.phase],
             "current_player": self._rotate_player_id(self.game.current_player_idx, player_id),
-            
-            "animals": animals.astype(np.float32) / 4.0,
-            
-            "money_own": money.astype(np.float32) / float(max_cards_per_value),
-            
-            "money_opponents": money_opponents.astype(np.float32) / float(MoneyDeck.AMOUNT_MONEYCARDS),
-            
-            "deck_size": np.array([len(self.game.animal_deck) / 40.0], dtype=np.float32),
-            "donkeys_revealed": np.array([self.game.donkeys_revealed / 5.0], dtype=np.float32),
-            
+            "animals": animals,
+            "money_own": money,
+            "money_opponents": money_opponents,
+            "deck_size": len(self.game.animal_deck),
+            "donkeys_revealed": self.game.donkeys_revealed,
             "auction_animal_type": auction_animal_type,
-            "auction_animal_value": np.array([self._log_normalize(self.game.current_animal.animal_type.get_value(), 1000) if self.game.current_animal else 0.0], dtype=np.float32),
-            "auction_high_bid": np.array([self._log_normalize(self.game.auction_high_bid or 0, MAX_MONEY)], dtype=np.float32),
+            "auction_high_bid": self.game.auction_high_bid or 0,
             "auction_initiator": auction_initiator,
             "auction_high_bidder": auction_high_bidder,
-            "auction_payment_card_count": np.array([self.game.last_auction_payment_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
-            
+            "auction_payment_card_count": self.game.last_auction_payment_card_count,
             "trade_initiator": self._rotate_player_id(self.game.trade_initiator, player_id) if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self._rotate_player_id(self.game.trade_target, player_id) if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_animal_value": np.array([self._log_normalize(self.game.trade_animal_type.get_value(), 1000) if self.game.trade_animal_type else 0.0], dtype=np.float32),
-            "trade_offer_card_count": np.array([self.game.trade_offer_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
-            
-            "players_money": players_money_normalized,
-            
-            "player_quartets": np.array(quartets_list, dtype=np.float32) / 10.0,
-            "player_potential_value": np.array(potential_value_list, dtype=np.float32) / 16000.0,
+            "trade_offer_card_count": self.game.trade_offer_card_count,
+            "known_player_money": known_money,
         }
 
         return observation
@@ -466,13 +427,6 @@ class KuhhandelEnv(gym.Env):
                     if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
                         mask[action_idx] = 1
 
-            elif action.type == ActionType.COW_TRADE_ADD_BLUFF:
-                # Map amount to action index
-                amount = action.amount
-                action_idx = ACTION_COW_BLUFF_BASE + amount
-                if ACTION_COW_BLUFF_BASE <= action_idx <= ACTION_COW_BLUFF_END:
-                    mask[action_idx] = 1
-
         return mask
 
     def get_action_mask(self) -> np.ndarray:
@@ -515,11 +469,6 @@ class KuhhandelEnv(gym.Env):
                 offer_level = action_idx - ACTION_COW_OFFER_BASE
                 offer_amount = offer_level * MONEY_STEP
                 return Actions.cow_trade_offer(offer_amount)
-
-        elif game.phase == GamePhase.COW_TRADE_BLUFF:
-            if ACTION_COW_BLUFF_BASE <= action_idx <= ACTION_COW_BLUFF_END:
-                amount = action_idx - ACTION_COW_BLUFF_BASE
-                return Actions.cow_trade_add_bluff(amount)
 
         elif game.phase == GamePhase.COW_TRADE_RESPONSE:
             if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
@@ -570,12 +519,8 @@ ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
 ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
 ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
 
-# Cow trade: Add bluff (0-value cards)
-ACTION_COW_BLUFF_BASE = ACTION_COW_OFFER_END + 1
-ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 0..10 cards
-
 # Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_BLUFF_END + 1
+ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
 COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
 
 N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
