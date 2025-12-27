@@ -270,6 +270,12 @@ class KuhhandelEnv(gym.Env):
 
         return reward
 
+    def _rotate_player_id(self, absolute_id: int, observer_id: int) -> int:
+        """
+        Rotate so observer becomes 0
+        """
+        return (absolute_id - observer_id) % N_PLAYERS
+
     def get_observation_for_player(self, player_id: int) -> dict:
         """
         Generate observation from the perspective of player_id.
@@ -277,12 +283,15 @@ class KuhhandelEnv(gym.Env):
         """
         all_animal_types = AnimalType.get_all_types()
 
-        # Flattened animals array: [player0_animal0, player0_animal1, ..., player2_animal9]
+        # Flattened animals array - ROTATED so observer's animals are at index 0-9
         animals = np.zeros(N_PLAYERS * N_ANIMALS, dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
+        for relative_idx in range(N_PLAYERS):
+            # Calculate absolute player index
+            absolute_idx = (player_id + relative_idx) % N_PLAYERS
+            player = self.game.players[absolute_idx]
             counts = player.get_animal_counts()
             for animal_idx, animal_type in enumerate(all_animal_types):
-                flat_idx = player_idx * N_ANIMALS + animal_idx
+                flat_idx = relative_idx * N_ANIMALS + animal_idx
                 animals[flat_idx] = counts.get(animal_type, 0)
 
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
@@ -291,17 +300,24 @@ class KuhhandelEnv(gym.Env):
         for value_idx, count in enumerate(histogram.values()):
              money[value_idx] = count
 
+        # Opponents' money card counts - ROTATED
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
-        for player_idx, player in enumerate(self.game.players):
-            if player_idx != player_id:
-                cards = len(player.money)
-                opponent_idx = player_idx - 1
-                money_opponents[opponent_idx] = cards
+        for relative_idx in range(1, N_PLAYERS):  # Skip observer (relative 0)
+            absolute_idx = (player_id + relative_idx) % N_PLAYERS
+            player = self.game.players[absolute_idx]
+            money_opponents[relative_idx - 1] = len(player.money)
 
-        opponent_money_visibility = np.delete(np.array(self.game.money_knowledge[player_id]), player_id)
-        total_money_other_players = np.delete(np.array([p.get_total_money() for p in self.game.players]), player_id)
+        # Known opponent money - ROTATED
+        opponent_money_visibility_list = []
+        total_money_list = []
+        for relative_idx in range(1, N_PLAYERS):
+            absolute_idx = (player_id + relative_idx) % N_PLAYERS
+            opponent_money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
+            total_money_list.append(self.game.players[absolute_idx].get_total_money())
+        
+        opponent_money_visibility = np.array(opponent_money_visibility_list)
+        total_money_other_players = np.array(total_money_list)
 
-        #TODO look if money known makes sense as 471 or if it should be a really high value so its not that close
         # Convert to money levels (0-470) and mark unknown as MONEY_UNKNOWN (471)
         money_levels = total_money_other_players // MONEY_STEP
         known_money = np.where(opponent_money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
@@ -310,12 +326,14 @@ class KuhhandelEnv(gym.Env):
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
 
         is_auction = self.game.phase in [GamePhase.AUCTION_BIDDING, GamePhase.AUCTIONEER_DECISION]
-        auction_initiator = self.game.current_player_idx if is_auction else N_PLAYERS
-        auction_high_bidder = self.game.auction_high_bidder if self.game.auction_high_bidder is not None else N_PLAYERS
+        
+        # Rotate player IDs so observer sees themselves as 0
+        auction_initiator = self._rotate_player_id(self.game.current_player_idx, player_id) if is_auction else N_PLAYERS
+        auction_high_bidder = self._rotate_player_id(self.game.auction_high_bidder, player_id) if self.game.auction_high_bidder is not None else N_PLAYERS
 
         observation = {
             "game_phase": self.GAME_PHASE_MAP[self.game.phase],
-            "current_player": self.game.current_player_idx,
+            "current_player": self._rotate_player_id(self.game.current_player_idx, player_id),
             "animals": animals,
             "money_own": money,
             "money_opponents": money_opponents,
@@ -326,8 +344,8 @@ class KuhhandelEnv(gym.Env):
             "auction_initiator": auction_initiator,
             "auction_high_bidder": auction_high_bidder,
             "auction_payment_card_count": self.game.last_auction_payment_card_count,
-            "trade_initiator": self.game.trade_initiator if self.game.trade_initiator is not None else N_PLAYERS,
-            "trade_target": self.game.trade_target if self.game.trade_target is not None else N_PLAYERS,
+            "trade_initiator": self._rotate_player_id(self.game.trade_initiator, player_id) if self.game.trade_initiator is not None else N_PLAYERS,
+            "trade_target": self._rotate_player_id(self.game.trade_target, player_id) if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
             "trade_offer_card_count": self.game.trade_offer_card_count,
             "known_player_money": known_money,
