@@ -6,12 +6,8 @@ import functools
 from sb3_contrib import MaskablePPO
 
 from rl.env import KuhhandelEnv
-from rl.agents.model_agent import ModelAgent
+from rl.model_agent import ModelAgent
 from rl.train_selfplay import LATEST_MODEL_PATH
-
-from sb3_contrib.common.maskable import distributions as maskable_dist
-from rl.train_selfplay import robust_apply_masking
-maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 DEBUG_SEED = random.randint(0, 2**32 - 1)
 
