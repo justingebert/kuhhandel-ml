@@ -2882,3 +2882,213 @@ Time elapsed: 857.86 mins
 |    time_elapsed    | 55       |
 |    total_timesteps | 10813440 |
 ---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 116        |
+|    ep_rew_mean          | 19.8       |
+| time/                   |            |
+|    fps                  | 264        |
+|    iterations           | 2          |
+|    time_elapsed         | 496        |
+|    total_timesteps      | 10878976   |
+| train/                  |            |
+|    approx_kl            | 0.22433546 |
+|    clip_fraction        | 0.152      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.13      |
+|    explained_variance   | 0.542      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.0921     |
+|    n_updates            | 1650       |
+|    policy_gradient_loss | -0.0181    |
+|    value_loss           | 0.386      |
+----------------------------------------
+Saved generation 83 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_4
+Time elapsed: 872.74 mins
+
+--- Generation 84 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 19.9     |
+| time/              |          |
+|    fps             | 1172     |
+|    iterations      | 1        |
+|    time_elapsed    | 55       |
+|    total_timesteps | 10944512 |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 117        |
+|    ep_rew_mean          | 19.6       |
+| time/                   |            |
+|    fps                  | 253        |
+|    iterations           | 2          |
+|    time_elapsed         | 518        |
+|    total_timesteps      | 11010048   |
+| train/                  |            |
+|    approx_kl            | 0.20834929 |
+|    clip_fraction        | 0.142      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.12      |
+|    explained_variance   | 0.586      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.0331     |
+|    n_updates            | 1670       |
+|    policy_gradient_loss | -0.0177    |
+|    value_loss           | 0.266      |
+----------------------------------------
+Saved generation 84 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_1
+Time elapsed: 888.24 mins
+
+--- Generation 85 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 20.1     |
+| time/              |          |
+|    fps             | 1182     |
+|    iterations      | 1        |
+|    time_elapsed    | 55       |
+|    total_timesteps | 11075584 |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 118        |
+|    ep_rew_mean          | 20         |
+| time/                   |            |
+|    fps                  | 243        |
+|    iterations           | 2          |
+|    time_elapsed         | 538        |
+|    total_timesteps      | 11141120   |
+| train/                  |            |
+|    approx_kl            | 0.19371107 |
+|    clip_fraction        | 0.14       |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.119     |
+|    explained_variance   | 0.538      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.245      |
+|    n_updates            | 1690       |
+|    policy_gradient_loss | -0.0171    |
+|    value_loss           | 0.307      |
+----------------------------------------
+Saved generation 85 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_2
+Time elapsed: 904.50 mins
+
+--- Generation 86 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 20.1     |
+| time/              |          |
+|    fps             | 1169     |
+|    iterations      | 1        |
+|    time_elapsed    | 56       |
+|    total_timesteps | 11206656 |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 117        |
+|    ep_rew_mean          | 19.7       |
+| time/                   |            |
+|    fps                  | 237        |
+|    iterations           | 2          |
+|    time_elapsed         | 551        |
+|    total_timesteps      | 11272192   |
+| train/                  |            |
+|    approx_kl            | 0.19636092 |
+|    clip_fraction        | 0.14       |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.116     |
+|    explained_variance   | 0.557      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.053      |
+|    n_updates            | 1710       |
+|    policy_gradient_loss | -0.0163    |
+|    value_loss           | 0.271      |
+----------------------------------------
+Saved generation 86 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_3
+Time elapsed: 921.07 mins
+
+--- Generation 87 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 19.6     |
+| time/              |          |
+|    fps             | 1175     |
+|    iterations      | 1        |
+|    time_elapsed    | 55       |
+|    total_timesteps | 11337728 |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 117        |
+|    ep_rew_mean          | 19.6       |
+| time/                   |            |
+|    fps                  | 237        |
+|    iterations           | 2          |
+|    time_elapsed         | 552        |
+|    total_timesteps      | 11403264   |
+| train/                  |            |
+|    approx_kl            | 0.18982798 |
+|    clip_fraction        | 0.142      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.12      |
+|    explained_variance   | 0.532      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.0296     |
+|    n_updates            | 1730       |
+|    policy_gradient_loss | -0.0168    |
+|    value_loss           | 0.326      |
+----------------------------------------
+Saved generation 87 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_4
+Time elapsed: 937.81 mins
+
+--- Generation 88 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 20       |
+| time/              |          |
+|    fps             | 1174     |
+|    iterations      | 1        |
+|    time_elapsed    | 55       |
+|    total_timesteps | 11468800 |
+---------------------------------
+----------------------------------------
+| rollout/                |            |
+|    ep_len_mean          | 117        |
+|    ep_rew_mean          | 20         |
+| time/                   |            |
+|    fps                  | 230        |
+|    iterations           | 2          |
+|    time_elapsed         | 568        |
+|    total_timesteps      | 11534336   |
+| train/                  |            |
+|    approx_kl            | 0.19972244 |
+|    clip_fraction        | 0.144      |
+|    clip_range           | 0.2        |
+|    entropy_loss         | -0.122     |
+|    explained_variance   | 0.586      |
+|    learning_rate        | 0.0003     |
+|    loss                 | 0.0429     |
+|    n_updates            | 1750       |
+|    policy_gradient_loss | -0.0175    |
+|    value_loss           | 0.248      |
+----------------------------------------
+Saved generation 88 to /home/jnn.aurich/kuhhandel-ml/itp/models/selfplay_pool/gen_1
+Time elapsed: 954.95 mins
+
+--- Generation 89 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 19.8     |
+| time/              |          |
+|    fps             | 1177     |
+|    iterations      | 1        |
+|    time_elapsed    | 55       |
+|    total_timesteps | 11599872 |
+---------------------------------
