@@ -22,6 +22,26 @@ maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"
 
+# Global model cache per subprocess to avoid loading the same model multiple times
+_MODEL_CACHE = {}
+
+def get_cached_model(model_path):
+    """
+    Load model once per subprocess and cache it.
+    This prevents loading the same model multiple times for different opponents.
+    """
+    if model_path is None:
+        return None
+    
+    if model_path not in _MODEL_CACHE:
+        print(f"[PID {multiprocessing.current_process().pid}] Loading model: {model_path}")
+        model = MaskablePPO.load(model_path, device='cpu')
+        # Clear rollout buffer immediately to save memory
+        if hasattr(model, "rollout_buffer"):
+            model.rollout_buffer = None
+        _MODEL_CACHE[model_path] = model
+    
+    return _MODEL_CACHE[model_path]
 
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
@@ -30,19 +50,24 @@ def mask_valid_action(env: gym.Env) -> np.ndarray:
 def opponent_generator_func(opponent_type, opponent_model_path, env_ref, n):
     """
     Module-level opponent generator function (picklable for multiprocessing).
-    Uses fixed parameters for opponent_type and opponent_model_path.
+    Uses cached model loading to share model instances between opponents.
     """
     return create_specific_opponents(n, env_ref, opponent_type, opponent_model_path)
 
 def create_specific_opponents(n_opponents, env_ref, opponent_type, opponent_model_path):
     opponents = []
     
+    # Load model once and share it between all opponents in this subprocess
+    shared_model = None
+    if opponent_type == "model":
+        shared_model = get_cached_model(opponent_model_path)
+    
     for i in range(n_opponents):
         if opponent_type == "random":
             opponents.append(RandomAgent(f"Random_{i}"))
         elif opponent_type == "model":
-            # Each subprocess loads the model once (shared within subprocess)
-            opponents.append(ModelAgent(f"Opponent_{i}", opponent_model_path, env=env_ref))
+            # Share the cached model instance instead of loading a new one
+            opponents.append(ModelAgent(f"Opponent_{i}", model_path=None, env=env_ref, model_instance=shared_model))
     
     return opponents
 
@@ -67,11 +92,12 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
     """
     Evaluates Model A vs Model B by running both configurations in parallel.
     
-    Creates mixed environments:
-    - Half: A as P0 vs 2xB
-    - Half: B as P0 vs 2xA
+    OPTIMIZED VERSION:
+    - Models are loaded WITHOUT env parameter to reduce memory overhead
+    - Rollout buffers are cleared immediately after loading
+    - Opponent models are cached per subprocess (shared between opponents)
     
-    Both run simultaneously, eliminating sequential overhead and cache misses.
+    This reduces model instances from ~34 to ~18 (2 main + 16 subprocess cached models)
     """
     
     start_time = time.time()
@@ -85,11 +111,12 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
         n_envs_config1 = int(total_envs / 2)  # Random vs A (slower, 2x models in opponents)
     
     print("\n" + "="*40)
-    print(f"FAIR EVALUATION ({n_total_games} total games)")
+    print(f"OPTIMIZED FAIR EVALUATION ({n_total_games} total games)")
     print("="*40)
     print(f"Model A: {model_a_path if model_a_path else 'Random'}")
     print(f"Model B: {model_b_path if model_b_path else 'Random'}")
     print(f"Using {total_envs} parallel environments (mixed configuration)")
+    print(f"Memory Optimization: Cached model loading enabled")
     print("="*40)
     
     # --- Create mixed environments ---
@@ -114,18 +141,18 @@ def evaluate_fair(model_a_path, model_b_path, n_total_games):
     config2_games = 0
     
     try:
-        # Load models for both configurations
+        # OPTIMIZATION: Load models WITHOUT env parameter to reduce memory overhead
         if model_a_path:
-            model_a = MaskablePPO.load(model_a_path, env=vec_env, device='cpu')
-            # Clear rollout buffer to save memory
+            model_a = MaskablePPO.load(model_a_path, device='cpu')
+            # Clear rollout buffer immediately to save memory
             if hasattr(model_a, "rollout_buffer"):
                 model_a.rollout_buffer = None
         else:
             model_a = None
             
         if model_b_path:
-            model_b = MaskablePPO.load(model_b_path, env=vec_env, device='cpu')
-            # Clear rollout buffer to save memory
+            model_b = MaskablePPO.load(model_b_path, device='cpu')
+            # Clear rollout buffer immediately to save memory
             if hasattr(model_b, "rollout_buffer"):
                 model_b.rollout_buffer = None
         else:
