@@ -11,7 +11,7 @@ from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecCheckNan
 import torch
 
 # Fix for Simplex error due to floating point precision issues
@@ -43,9 +43,8 @@ def robust_apply_masking(self, masks: torch.Tensor):
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 from rl.env import KuhhandelEnv
-from rl.agents.model_agent import ModelAgent
-from rl.agents.random_agent import RandomAgent
-from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
+from rl.model_agent import ModelAgent
+from tests.demo_game import RandomAgent
 
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
@@ -60,13 +59,12 @@ SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 10
+N_GENERATIONS = 5
 STEPS_PER_GEN = 30000  
 N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
-PROB_RANDOM = 0.1
-PROB_SCHWABE = 0.8 #(Incase of Random Agent)
+PROB_RANDOM = 0.05
 
 MODEL_CACHE = {}
 
@@ -103,12 +101,9 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
     pool_files = glob.glob(f"{SELFPLAY_DIR}/*.zip")
     
     for i in range(n_opponents):
-        r = random.random()
-        if not pool_files or r < PROB_RANDOM: #experiment with this
-            if r < PROB_SCHWABE:
-                opponents.append(RandomSchwabenAgent(f"Random_{i}"))
-            else:
-                opponents.append(RandomAgent(f"Random_{i}"))
+        #if not models exist append random agent, or sometimes 
+        if not pool_files or random.random() < PROB_RANDOM: #experiment with this
+            opponents.append(RandomAgent(f"Random_{i}"))
         else:
             model_file = random.choice(pool_files)
             name = os.path.basename(model_file).replace(".zip", "")
@@ -124,8 +119,6 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
 
 def make_env(rank: int, opponent_generator_func):
     def _init():
-        torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
-        
         env = KuhhandelEnv(num_players=3)
         
         env.opponent_generator = opponent_generator_func

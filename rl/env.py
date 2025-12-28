@@ -226,7 +226,7 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= 0.3 * (overbid_amount - 10) / 100
+                        reward -= (overbid_amount - 10) / 100
                     
         self.last_reward_history_idx = current_history_len
 
