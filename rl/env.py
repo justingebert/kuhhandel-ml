@@ -29,41 +29,36 @@ class KuhhandelEnv(gym.Env):
             "current_player": Discrete(N_PLAYERS),
 
             # per-player animals: 0..4 of each type (flattened: N_PLAYERS * N_ANIMALS)
-            "animals": MultiDiscrete(
-                np.full(N_PLAYERS * N_ANIMALS, 5, dtype=np.int64)
-            ),
+            # Normalized by 4.0
+            "animals": Box(low=0.0, high=1.0, shape=(N_PLAYERS * N_ANIMALS,), dtype=np.float32),
 
-            # own money histogram
-            "money_own": MultiDiscrete(
-                np.full(len(MONEY_VALUES), max_cards_per_value, dtype=np.int64)
-            ),
+            # own money histogram (normalized by max_cards_per_value)
+            "money_own": Box(low=0.0, high=1.0, shape=(len(MONEY_VALUES),), dtype=np.float32),
 
-            "money_opponents": MultiDiscrete(
-                np.full((N_PLAYERS - 1), MoneyDeck.AMOUNT_MONEYCARDS + 1, dtype=np.int64)
-            ),
+            # opponent money card counts (normalized by MoneyDeck.AMOUNT_MONEYCARDS)
+            "money_opponents": Box(low=0.0, high=1.0, shape=(N_PLAYERS - 1,), dtype=np.float32),
 
             # deck + donkeys
-            "deck_size": Discrete(41),
-            "donkeys_revealed": Discrete(5),
+            "deck_size": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 41
+            "donkeys_revealed": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 5
 
             # auction info
             "auction_animal_type": Discrete(N_ANIMALS + 1),  # 0..N_ANIMALS-1, N_ANIMALS = none
-            "auction_high_bid": Discrete(MAX_MONEY + 1),  # 0..MAX_MONEY
+            "auction_high_bid": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),  # Norm MAX_MONEY
             "auction_initiator": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
             "auction_high_bidder": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
-            "auction_payment_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1), 
+            "auction_payment_card_count": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm MoneyDeck.AMOUNT_MONEYCARDS
 
             # cow trade info
             "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
             # Card counts are visible, exact values are hidden
-            "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
+            "trade_offer_card_count": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm MoneyDeck.AMOUNT_MONEYCARDS
 
             # Money tracking: per player (index 0 is self), values 0-470 (money levels) or 471 (unknown)
-            "players_money": MultiDiscrete(
-                np.full(N_PLAYERS, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
-            ),
+            # Normalized by N_MONEY_LEVELS. Unknown is represented as -1.0
+            "players_money": Box(low=-1.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
 
             # Score components (Normalized floats 0.0-1.0):
             # 1. Number of quartets (Multiplier) - Max 10 per player
@@ -344,9 +339,17 @@ class KuhhandelEnv(gym.Env):
         money_visibility = np.array(money_visibility_list)
         total_money_players = np.array(total_money_list)
 
-        # Convert to money levels (0-470) and mark unknown as MONEY_UNKNOWN (471)
-        money_levels = total_money_players // MONEY_STEP
-        players_money = np.where(money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
+        # Money Normalization
+        # If visible: money // MONEY_STEP / N_MONEY_LEVELS
+        # If unknown: -1.0
+        players_money_normalized = np.zeros(N_PLAYERS, dtype=np.float32)
+        for i in range(N_PLAYERS):
+            if money_visibility[i]:
+                money_level = total_money_players[i] // MONEY_STEP
+                players_money_normalized[i] = money_level / float(N_MONEY_LEVELS)
+            else:
+                players_money_normalized[i] = -1.0
+
 
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
@@ -360,21 +363,29 @@ class KuhhandelEnv(gym.Env):
         observation = {
             "game_phase": self.GAME_PHASE_MAP[self.game.phase],
             "current_player": self._rotate_player_id(self.game.current_player_idx, player_id),
-            "animals": animals,
-            "money_own": money,
-            "money_opponents": money_opponents,
-            "deck_size": len(self.game.animal_deck),
-            "donkeys_revealed": self.game.donkeys_revealed,
+            
+            "animals": animals.astype(np.float32) / 4.0,
+            
+            "money_own": money.astype(np.float32) / float(max_cards_per_value),
+            
+            "money_opponents": money_opponents.astype(np.float32) / float(MoneyDeck.AMOUNT_MONEYCARDS),
+            
+            "deck_size": np.array([len(self.game.animal_deck) / 40.0], dtype=np.float32),
+            "donkeys_revealed": np.array([self.game.donkeys_revealed / 5.0], dtype=np.float32),
+            
             "auction_animal_type": auction_animal_type,
-            "auction_high_bid": self.game.auction_high_bid or 0,
+            "auction_high_bid": np.array([(self.game.auction_high_bid or 0) / float(MAX_MONEY)], dtype=np.float32),
             "auction_initiator": auction_initiator,
             "auction_high_bidder": auction_high_bidder,
-            "auction_payment_card_count": self.game.last_auction_payment_card_count,
+            "auction_payment_card_count": np.array([self.game.last_auction_payment_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
+            
             "trade_initiator": self._rotate_player_id(self.game.trade_initiator, player_id) if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self._rotate_player_id(self.game.trade_target, player_id) if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
-            "trade_offer_card_count": self.game.trade_offer_card_count,
-            "players_money": players_money,
+            "trade_offer_card_count": np.array([self.game.trade_offer_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
+            
+            "players_money": players_money_normalized,
+            
             "player_quartets": np.array(quartets_list, dtype=np.float32) / 10.0,
             "player_potential_value": np.array(potential_value_list, dtype=np.float32) / 16000.0,
         }
