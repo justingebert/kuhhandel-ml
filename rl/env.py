@@ -60,9 +60,19 @@ class KuhhandelEnv(gym.Env):
             # Card counts are visible, exact values are hidden
             "trade_offer_card_count": Discrete(MoneyDeck.AMOUNT_MONEYCARDS + 1),  # 0 = no offer
 
-            # Money tracking: per opponent, values 0-470 (money levels) or 471 (unknown)
-            "known_player_money": MultiDiscrete(
-                np.full(N_PLAYERS - 1, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
+            # Money tracking: per player (index 0 is self), values 0-470 (money levels) or 471 (unknown)
+            "players_money": MultiDiscrete(
+                np.full(N_PLAYERS, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
+            ),
+
+            # Score components:
+            # 1. Number of quartets (Multiplier) - Max 10 per player
+            "player_quartets": MultiDiscrete(
+                np.full(N_PLAYERS, N_ANIMALS + 1, dtype=np.int64)
+            ),
+            # 2. Potential Value (Sum of all held cards) - Max ~15400
+            "player_potential_value": MultiDiscrete(
+                np.full(N_PLAYERS, 16000, dtype=np.int64)
             ),
         })
 
@@ -307,20 +317,39 @@ class KuhhandelEnv(gym.Env):
             player = self.game.players[absolute_idx]
             money_opponents[relative_idx - 1] = len(player.money)
 
-        # Known opponent money - ROTATED
-        opponent_money_visibility_list = []
+        # Player money knowledge (including self at index 0)
+        money_visibility_list = []
         total_money_list = []
-        for relative_idx in range(1, N_PLAYERS):
+        quartets_list = []
+        potential_value_list = []
+
+        for relative_idx in range(N_PLAYERS): # 0 (self) to N-1
             absolute_idx = (player_id + relative_idx) % N_PLAYERS
-            opponent_money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
-            total_money_list.append(self.game.players[absolute_idx].get_total_money())
+            p_obj = self.game.players[absolute_idx]
+            
+            # Money
+            money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
+            total_money_list.append(p_obj.get_total_money())
+
+            # Score Metrics
+            # Count quartets (sets of 4)
+            quartet_count = sum(1 for count in p_obj.get_animal_counts().values() if count == 4)
+            quartets_list.append(quartet_count)
+
+            # Potential Value: Sum of value of ALL held cards
+            p_val = 0
+            # iterate over animal types to calculate value
+            for animal_t in AnimalType.get_all_types():
+                count = p_obj.get_animal_count(animal_t)
+                p_val += count * animal_t.points
+            potential_value_list.append(p_val)
         
-        opponent_money_visibility = np.array(opponent_money_visibility_list)
-        total_money_other_players = np.array(total_money_list)
+        money_visibility = np.array(money_visibility_list)
+        total_money_players = np.array(total_money_list)
 
         # Convert to money levels (0-470) and mark unknown as MONEY_UNKNOWN (471)
-        money_levels = total_money_other_players // MONEY_STEP
-        known_money = np.where(opponent_money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
+        money_levels = total_money_players // MONEY_STEP
+        players_money = np.where(money_visibility, money_levels, MONEY_UNKNOWN).astype(np.int64)
 
         auction_animal_type = AnimalType.get_all_types().index(self.game.current_animal.animal_type) if self.game.current_animal else N_ANIMALS
         trade_animal_type = AnimalType.get_all_types().index(self.game.trade_animal_type) if self.game.trade_animal_type else N_ANIMALS
@@ -348,7 +377,9 @@ class KuhhandelEnv(gym.Env):
             "trade_target": self._rotate_player_id(self.game.trade_target, player_id) if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
             "trade_offer_card_count": self.game.trade_offer_card_count,
-            "known_player_money": known_money,
+            "players_money": players_money,
+            "player_quartets": np.array(quartets_list, dtype=np.int64),
+            "player_potential_value": np.array(potential_value_list, dtype=np.int64),
         }
 
         return observation
