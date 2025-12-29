@@ -123,18 +123,18 @@ class UserAgent(Agent):
         if current_len > self.last_history_len:
             print(f"\n--- Game Log (Since last turn) ---")
             for i in range(self.last_history_len, current_len):
-                entry = game.action_history[i]
-                action_type = entry.get("action")
-                details = entry.get("details", {})
-                
-                msg = self._format_log_entry(action_type, details, game)
+                msg = self._format_log_entry(i, game)
                 if msg:
                     print(f" > {msg}")
             print(f"----------------------------------")
         
         self.last_history_len = current_len
 
-    def _format_log_entry(self, action_type: str, details: Dict[str, Any], game: Game) -> str:
+    def _format_log_entry(self, index: int, game: Game) -> str:
+        entry = game.action_history[index]
+        action_type = entry.get("action")
+        details = entry.get("details", {})
+
         # Helper to get player name
         def p_name(pid):
             if pid == self.player_id:
@@ -151,7 +151,7 @@ class UserAgent(Agent):
             return f"{p_name(details['player'])} passes."
             
         elif action_type == "pass_force_money":
-            return f"{p_name(details['player'])} forced to pass (not enough money)."
+            return f"{p_name(details['player'])} passes."
 
         elif action_type == "high_bidder_wins":
             return f"{p_name(details['bidder'])} wins auction! Pays {details['paid']} to {p_name(details['to'])}."
@@ -167,14 +167,39 @@ class UserAgent(Agent):
             
         elif action_type == "cow_trade_offer":
              pass
-
+ 
         elif action_type == "cow_trade_counter_offer":
             pass
 
         elif action_type == "resolve_trade":
-            winner = p_name(game.last_trade_result["winner_player_id"])
-            loser = p_name(game.last_trade_result["loser_player_id"])
-            return f"Trade Result: {winner} wins! Takes {details['animals_transferred']} animals from {loser}."
+            # Search backwards for the start of this trade to identify players
+            initiator_id = None
+            target_id = None
+            
+            for j in range(index - 1, -1, -1):
+                prev_entry = game.action_history[j]
+                if prev_entry["action"] == "start_cow_trade":
+                    initiator_id = prev_entry["details"]["initiator"]
+                    target_id = prev_entry["details"]["target"]
+                    break
+            
+            if initiator_id is not None:
+                winner_role = details.get("winner") # 'initiator' or 'target'
+                if winner_role == "initiator":
+                    winner = p_name(initiator_id)
+                    loser = p_name(target_id)
+                    payment = details.get("offer", 0)
+                else:
+                    winner = p_name(target_id)
+                    loser = p_name(initiator_id)
+                    payment = details.get("counter", 0)
+
+                msg = f"Trade Result: {winner} wins! Takes {details['animals_transferred']} animals from {loser}."
+                if self.player_id in [initiator_id, target_id]:
+                    msg += f" (Net Payment: {payment})"
+                return msg
+            else:
+                return "Trade Result: (Could not identify participants)"
             
         elif action_type == "donkey_money":
             return f"Donkey #{details['donkey_number']} revealed! Distributing {details['value']} money."
