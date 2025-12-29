@@ -2,7 +2,7 @@ from typing import Optional, List
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Dict, Discrete, MultiDiscrete
+from gymnasium.spaces import Dict, Discrete, MultiDiscrete, Box
 
 from gameengine import AnimalType, MoneyDeck
 from gameengine.actions import Actions, GameAction
@@ -65,15 +65,12 @@ class KuhhandelEnv(gym.Env):
                 np.full(N_PLAYERS, N_MONEY_LEVELS + 1, dtype=np.int64)  # 472 values: 0-470 + unknown (471)
             ),
 
-            # Score components:
+            # Score components (Normalized floats 0.0-1.0):
             # 1. Number of quartets (Multiplier) - Max 10 per player
-            "player_quartets": MultiDiscrete(
-                np.full(N_PLAYERS, N_ANIMALS + 1, dtype=np.int64)
-            ),
+            "player_quartets": Box(low=0.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
+            
             # 2. Potential Value (Sum of all held cards) - Max ~15400
-            "player_potential_value": MultiDiscrete(
-                np.full(N_PLAYERS, 16000, dtype=np.int64)
-            ),
+            "player_potential_value": Box(low=0.0, high=1.0, shape=(N_PLAYERS,), dtype=np.float32),
         })
 
         self.game: Optional[Game] = None
@@ -378,8 +375,8 @@ class KuhhandelEnv(gym.Env):
             "trade_animal_type": trade_animal_type,
             "trade_offer_card_count": self.game.trade_offer_card_count,
             "players_money": players_money,
-            "player_quartets": np.array(quartets_list, dtype=np.int64),
-            "player_potential_value": np.array(potential_value_list, dtype=np.int64),
+            "player_quartets": np.array(quartets_list, dtype=np.float32) / 10.0,
+            "player_potential_value": np.array(potential_value_list, dtype=np.float32) / 16000.0,
         }
 
         return observation
