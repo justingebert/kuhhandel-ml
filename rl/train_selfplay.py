@@ -119,6 +119,8 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
 
 def make_env(rank: int, opponent_generator_func):
     def _init():
+        torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
+        
         env = KuhhandelEnv(num_players=3)
         
         env.opponent_generator = opponent_generator_func

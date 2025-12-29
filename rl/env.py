@@ -154,6 +154,13 @@ class KuhhandelEnv(gym.Env):
 
         return obs, reward, terminated, truncated, info
 
+    def _log_normalize(self, value: float, max_value: float) -> float:
+        """
+        Logarithmic normalization: log(value + 1) / log(max_value + 1).
+        Amplifies differences at the lower end (e.g., 10 vs 20) while compressing high values.
+        """
+        return np.log(value + 1) / np.log(max_value + 1)
+
     def _play_until_next_decision(self):
         """Advance the game until the RL agent needs to make a decision."""
         max_steps = 200  # Safety limit
@@ -345,8 +352,8 @@ class KuhhandelEnv(gym.Env):
         players_money_normalized = np.zeros(N_PLAYERS, dtype=np.float32)
         for i in range(N_PLAYERS):
             if money_visibility[i]:
-                money_level = total_money_players[i] // MONEY_STEP
-                players_money_normalized[i] = money_level / float(N_MONEY_LEVELS)
+                # Log scale for money to better distinguish low values
+                players_money_normalized[i] = self._log_normalize(total_money_players[i], MAX_MONEY)
             else:
                 players_money_normalized[i] = -1.0
 
@@ -374,7 +381,7 @@ class KuhhandelEnv(gym.Env):
             "donkeys_revealed": np.array([self.game.donkeys_revealed / 5.0], dtype=np.float32),
             
             "auction_animal_type": auction_animal_type,
-            "auction_high_bid": np.array([(self.game.auction_high_bid or 0) / float(MAX_MONEY)], dtype=np.float32),
+            "auction_high_bid": np.array([self._log_normalize(self.game.auction_high_bid or 0, MAX_MONEY)], dtype=np.float32),
             "auction_initiator": auction_initiator,
             "auction_high_bidder": auction_high_bidder,
             "auction_payment_card_count": np.array([self.game.last_auction_payment_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
