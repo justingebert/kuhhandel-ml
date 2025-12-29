@@ -187,6 +187,7 @@ class UserAgent(Agent):
         
         print(f"\n--- State ---")
         print(f"Phase: {game.phase.name}")
+        print(f"Round: {game.round_number}")
         print(f"Cards in Deck: {len(game.animal_deck)}")
         
         if game.phase == GamePhase.AUCTION_BIDDING:
@@ -223,8 +224,6 @@ class UserAgent(Agent):
         print(f"\n{'='*20}")
         print("OPPONENT ANIMALS")
         for p in game.players:
-            if p.player_id == self.player_id:
-                continue
             animals_str = []
             for animal_type, count in p.get_animal_counts().items():
                 if count > 0:
