@@ -1,12 +1,13 @@
 import argparse
 import os
+import sys
 
 from sb3_contrib import MaskablePPO
 
-from rl.agents.user_agent import UserAgent
+from rl.user_agent import UserAgent
 from rl.env import KuhhandelEnv
-from rl.agents.model_agent import ModelAgent
-from rl.agents.random_agent import RandomAgent
+from rl.model_agent import ModelAgent
+from rl.random_agent import RandomAgent
 
 from sb3_contrib.common.maskable import distributions as maskable_dist
 from rl.train_selfplay import robust_apply_masking
