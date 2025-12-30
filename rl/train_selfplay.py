@@ -65,7 +65,8 @@ STEPS_PER_GEN = 30000
 N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
 
 # Opponent Distribution
-PROB_RANDOM = 0.05
+PROB_RANDOM = 0.1
+PROB_SCHWABE = 0.8 #(Incase of Random Agent)
 
 MODEL_CACHE = {}
 
@@ -102,9 +103,12 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
     pool_files = glob.glob(f"{SELFPLAY_DIR}/*.zip")
     
     for i in range(n_opponents):
-        #if not models exist append random agent, or sometimes 
-        if not pool_files or random.random() < PROB_RANDOM: #experiment with this
-            opponents.append(RandomAgent(f"Random_{i}"))
+        r = random.random()
+        if not pool_files or r < PROB_RANDOM: #experiment with this
+            if r < PROB_SCHWABE:
+                opponents.append(RandomSchwabenAgent(f"Random_{i}"))
+            else:
+                opponents.append(RandomAgent(f"Random_{i}"))
         else:
             model_file = random.choice(pool_files)
             name = os.path.basename(model_file).replace(".zip", "")
