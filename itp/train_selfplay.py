@@ -68,7 +68,7 @@ N_ENVS = min(multiprocessing.cpu_count(), 32) #use available cores up to a maxim
 
 # Opponent Distribution
 PROB_RANDOM = 0.05
-PROB_SCHWABEN = 0.05
+PROB_SCHWABE = 0.8 #prop that random agent is swabian
 
 MODEL_CACHE = {}
 
@@ -106,11 +106,11 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
     
     for i in range(n_opponents): #review changes hier
         r = random.random()
-        #if not models exist append random agent, or sometimes 
-        if not pool_files or r < PROB_RANDOM: 
-            opponents.append(RandomAgent(f"Random_{i}"))
-        elif r < PROB_RANDOM + PROB_SCHWABEN:
-            opponents.append(RandomSchwabenAgent(f"Schwaben_{i}"))
+        if not pool_files or r < PROB_RANDOM: #experiment with this
+            if r < PROB_SCHWABE:
+                opponents.append(RandomSchwabenAgent(f"Random_{i}"))
+            else:
+                opponents.append(RandomAgent(f"Random_{i}"))
         else:
             model_file = random.choice(pool_files)
             name = os.path.basename(model_file).replace(".zip", "")

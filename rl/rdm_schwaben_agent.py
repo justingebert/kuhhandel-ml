@@ -32,7 +32,7 @@ class RandomSchwabenAgent(Agent):
              return random.choice(valid_actions)
         
         indices = np.arange(len(valid_actions))
-        weights = 1.0 / ((indices + 1) ** 2)
+        weights = 1.0 / (indices + 1)
         
         probs = weights / np.sum(weights)
         
