@@ -139,7 +139,7 @@ class UserAgent(Agent):
         def p_name(pid):
             if pid == self.player_id:
                 return "You"
-            return game.players[pid].name if pid < len(game.players) else f"Player {pid}"
+            return game.players[pid].name
 
         if action_type == "start_auction":
             return f"Auction started by {p_name(details['player'])} for {details['animal']}."
@@ -188,15 +188,15 @@ class UserAgent(Agent):
                 if winner_role == "initiator":
                     winner = p_name(initiator_id)
                     loser = p_name(target_id)
-                    payment = details.get("offer", 0)
                 else:
                     winner = p_name(target_id)
                     loser = p_name(initiator_id)
-                    payment = details.get("counter", 0)
+                
+                net_payment = abs(details.get("counter", 0)-details.get("offer", 0))
 
                 msg = f"Trade Result: {winner} wins! Takes {details['animals_transferred']} animals from {loser}."
                 if self.player_id in [initiator_id, target_id]:
-                    msg += f" (Net Payment: {payment})"
+                    msg += f" (Net Payment: {net_payment})"
                 return msg
             else:
                 return "Trade Result: (Could not identify participants)"
