@@ -47,7 +47,7 @@ maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 from rl.env import KuhhandelEnv
 from rl.model_agent import ModelAgent
 from rl.random_agent import RandomAgent
-from rl.schwaben_agent import RandomSchwabenAgent
+from rl.rdm_schwaben_agent import RandomSchwabenAgent
 
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
