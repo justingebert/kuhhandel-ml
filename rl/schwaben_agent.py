@@ -19,22 +19,13 @@ class RandomSchwabenAgent(Agent):
         For money-related actions, lower indices (cheaper) are much more likely.
         For strategy/selection actions, uniform random is used.
         """
-        can_start_auction = any(a.type == ActionType.START_AUCTION for a in valid_actions)
-        if can_start_auction:
+        if valid_actions[0].type == ActionType.START_AUCTION:
             return valid_actions[0] # Start Auction
-
-        first_action = valid_actions[0]
         
-
-        if first_action.type in [ # hier review fortsetzen
-            ActionType.START_COW_TRADE,
+        if valid_actions[0].type in [ #Select Opponent/Animal
             ActionType.COW_TRADE_CHOOSE_OPPONENT,
             ActionType.COW_TRADE_CHOOSE_ANIMAL
-        ] or (
-            # If we have a mix of Start Auction and Cow Trade, treat as uniform
-            any(a.type == ActionType.START_AUCTION for a in valid_actions) and 
-            any(a.type == ActionType.COW_TRADE_CHOOSE_OPPONENT for a in valid_actions) 
-        ):
+        ]:
              return random.choice(valid_actions)
 
         # 2. Money Related Cases (Weighted)
