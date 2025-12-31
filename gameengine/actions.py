@@ -89,6 +89,11 @@ class CowTradeAddBluffAction(GameActionBase):
     _template = "Add Bluff ({s.amount} zero-cards)"
 
 @dataclass(frozen=True)
+class CowTradeAddBluffAction(GameActionBase):
+    amount: int # number of 0 cards to add
+    type: ActionType = field(default=ActionType.COW_TRADE_ADD_BLUFF, init=False)
+
+@dataclass(frozen=True)
 class CowTradeCounterOfferAction(GameActionBase):
     amount: int
     type: ActionType = field(default=ActionType.COUNTER_OFFER, init=False)

@@ -67,6 +67,8 @@ class Game:
         self.trade_animal_type: Optional[AnimalType] = None
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
+        self.trade_offer: int = 0
+        self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
         self.trade_offer_bluff_count: int = 0
 
