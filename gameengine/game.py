@@ -20,7 +20,8 @@ class GamePhase(Enum):
 
     COW_TRADE_CHOOSE_ANIMAL = 3
     COW_TRADE_OFFER = 4
-    COW_TRADE_RESPONSE = 5
+    COW_TRADE_BLUFF = 5
+    COW_TRADE_RESPONSE = 6
     
     GAME_OVER = "game_over"
 
@@ -66,7 +67,10 @@ class Game:
         self.trade_animal_type: Optional[AnimalType] = None
         self.trade_offer: int = 0
         self.trade_counter_offer: int = 0
+        self.trade_offer: int = 0
+        self.trade_counter_offer: int = 0
         self.trade_offer_card_count: int = 0
+        self.trade_offer_bluff_count: int = 0
 
 
         # Track last completed trade result for reward calculation
@@ -221,6 +225,15 @@ class Game:
                 # Offer can be any amount from 0 to total money (step of 10)
                 for amount in range(0, total_money + 1, 10):
                     actions.append(Actions.cow_trade_offer(amount))
+
+        elif self.phase == GamePhase.COW_TRADE_BLUFF:
+            # Only current player can add bluff
+            if player_id == self.current_player_idx:
+                # Count how many 0 cards player has
+                zero_count = player.get_money_histogram([0]).get(0, 0)
+                # Can add anywhere from 0 to all zeros
+                for count in range(zero_count + 1):
+                    actions.append(Actions.cow_trade_add_bluff(count))
 
         elif self.phase == GamePhase.COW_TRADE_RESPONSE:
             # Only trade target can respond
@@ -495,6 +508,21 @@ class Game:
             "cards": self.trade_offer_card_count
         })
 
+        self.phase = GamePhase.COW_TRADE_BLUFF
+
+    def choose_cow_trade_bluff(self, amount: int):
+        """Add bluff (zero) cards to the offer."""
+        self.trade_offer_bluff_count = amount
+        
+        # Add bluff cards to the total card count seen by opponent
+        self.trade_offer_card_count += amount
+
+        self._log_action("cow_trade_bluff", {
+            "player": self.trade_initiator,
+            "bluff_cards": amount,
+            "total_cards": self.trade_offer_card_count
+        })
+
         self.phase = GamePhase.COW_TRADE_RESPONSE
 
     def choose_cow_trade_counter_offer(self, amount: int):
@@ -540,6 +568,12 @@ class Game:
         # Exchange money - select cards from amounts and transfer
         if self.trade_offer > 0:
             offer_cards = initiator.select_payment_cards(self.trade_offer)
+            
+            # Add bluff cards if any
+            if self.trade_offer_bluff_count > 0:
+                bluff_cards = initiator.get_cards_by_value(0, self.trade_offer_bluff_count)
+                offer_cards.extend(bluff_cards)
+            
             initiator.remove_money(offer_cards)
             target.add_money(offer_cards)
 
@@ -599,6 +633,7 @@ class Game:
         self.trade_offer = 0
         self.trade_counter_offer = 0
         self.trade_offer_card_count = 0
+        self.trade_offer_bluff_count = 0
         self._next_turn()
 
     def _next_turn(self):

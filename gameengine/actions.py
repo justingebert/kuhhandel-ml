@@ -15,6 +15,7 @@ class ActionType(Enum):
     COW_TRADE_CHOOSE_OPPONENT = "cow_trade_choose_opponent"
     COW_TRADE_CHOOSE_ANIMAL = "cow_trade_choose_animal"
     COW_TRADE_OFFER = "cow_trade_offer"
+    COW_TRADE_ADD_BLUFF = "cow_trade_add_bluff"
     COUNTER_OFFER = "counter_offer"
 
 # Base class for all actions (optional but recommended)
@@ -60,6 +61,11 @@ class CowTradeOfferAction(GameActionBase):
     type: ActionType = field(default=ActionType.COW_TRADE_OFFER, init=False)
 
 @dataclass(frozen=True)
+class CowTradeAddBluffAction(GameActionBase):
+    amount: int # number of 0 cards to add
+    type: ActionType = field(default=ActionType.COW_TRADE_ADD_BLUFF, init=False)
+
+@dataclass(frozen=True)
 class CowTradeCounterOfferAction(GameActionBase):
     amount: int
     type: ActionType = field(default=ActionType.COUNTER_OFFER, init=False)
@@ -75,6 +81,7 @@ GameAction = Union[
     CowTradeChooseOpponentAction,
     CowTradeChooseAnimalAction,
     CowTradeOfferAction,
+    CowTradeAddBluffAction,
     CowTradeCounterOfferAction
 ]
 
@@ -121,6 +128,11 @@ class Actions:
     def cow_trade_offer(amount: int) -> CowTradeOfferAction:
         """Create a cow trade offer action."""
         return CowTradeOfferAction(amount=amount)
+
+    @staticmethod
+    def cow_trade_add_bluff(amount: int) -> CowTradeAddBluffAction:
+        """Create a cow trade add bluff action."""
+        return CowTradeAddBluffAction(amount=amount)
 
     @staticmethod
     def counter_offer(amount: int) -> CowTradeCounterOfferAction:
