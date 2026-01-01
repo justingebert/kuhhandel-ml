@@ -294,54 +294,43 @@ class KuhhandelEnv(gym.Env):
         """
         all_animal_types = AnimalType.get_all_types()
 
-        # Flattened animals array - ROTATED so observer's animals are at index 0-9
         animals = np.zeros(N_PLAYERS * N_ANIMALS, dtype=np.int64)
-        for relative_idx in range(N_PLAYERS):
-            # Calculate absolute player index
-            absolute_idx = (player_id + relative_idx) % N_PLAYERS
-            player = self.game.players[absolute_idx]
-            counts = player.get_animal_counts()
-            for animal_idx, animal_type in enumerate(all_animal_types):
-                flat_idx = relative_idx * N_ANIMALS + animal_idx
-                animals[flat_idx] = counts.get(animal_type, 0)
-
         money = np.zeros(len(MONEY_VALUES), dtype=np.int64)
         observer_player = self.game.players[player_id]
         histogram = observer_player.get_money_histogram(MONEY_VALUES)
         for value_idx, count in enumerate(histogram.values()):
-             money[value_idx] = count
+            money[value_idx] = count
 
-        # Opponents' money card counts - ROTATED
         money_opponents = np.zeros(N_PLAYERS-1, dtype=np.int64)
-        for relative_idx in range(1, N_PLAYERS):  # Skip observer (relative 0)
-            absolute_idx = (player_id + relative_idx) % N_PLAYERS
-            player = self.game.players[absolute_idx]
-            money_opponents[relative_idx - 1] = len(player.money)
 
-        # Player money knowledge (including self at index 0)
         money_visibility_list = []
         total_money_list = []
         quartets_list = []
         potential_value_list = []
 
-        for relative_idx in range(N_PLAYERS): # 0 (self) to N-1
+        for relative_idx in range(N_PLAYERS):
             absolute_idx = (player_id + relative_idx) % N_PLAYERS
-            p_obj = self.game.players[absolute_idx]
-            
-            # Money
-            money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
-            total_money_list.append(p_obj.get_total_money())
+            player = self.game.players[absolute_idx]
 
-            # Score Metrics
-            # Count quartets (sets of 4)
-            quartet_count = sum(1 for count in p_obj.get_animal_counts().values() if count == 4)
+            counts = player.get_animal_counts()
+            for animal_idx, animal_type in enumerate(all_animal_types):
+                flat_idx = relative_idx * N_ANIMALS + animal_idx
+                animals[flat_idx] = counts[animal_type]
+
+            money_opponents[relative_idx - 1] = len(player.money)
+
+            money_visibility_list.append(self.game.money_knowledge[player_id][absolute_idx])
+
+            total_money_list.append(player.get_total_money())
+
+            quartet_count = sum(1 for count in player.get_animal_counts().values() if count == 4)
             quartets_list.append(quartet_count)
 
             # Potential Value: Sum of value of ALL held cards
             p_val = 0
             # iterate over animal types to calculate value
             for animal_t in AnimalType.get_all_types():
-                count = p_obj.get_animal_count(animal_t)
+                count = player.get_animal_count(animal_t)
                 p_val += count * animal_t.points
             potential_value_list.append(p_val)
         
@@ -477,6 +466,13 @@ class KuhhandelEnv(gym.Env):
                     if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
                         mask[action_idx] = 1
 
+            elif action.type == ActionType.COW_TRADE_ADD_BLUFF:
+                # Map amount to action index
+                amount = action.amount
+                action_idx = ACTION_COW_BLUFF_BASE + amount
+                if ACTION_COW_BLUFF_BASE <= action_idx <= ACTION_COW_BLUFF_END:
+                    mask[action_idx] = 1
+
         return mask
 
     def get_action_mask(self) -> np.ndarray:
@@ -519,6 +515,11 @@ class KuhhandelEnv(gym.Env):
                 offer_level = action_idx - ACTION_COW_OFFER_BASE
                 offer_amount = offer_level * MONEY_STEP
                 return Actions.cow_trade_offer(offer_amount)
+
+        elif game.phase == GamePhase.COW_TRADE_BLUFF:
+            if ACTION_COW_BLUFF_BASE <= action_idx <= ACTION_COW_BLUFF_END:
+                amount = action_idx - ACTION_COW_BLUFF_BASE
+                return Actions.cow_trade_add_bluff(amount)
 
         elif game.phase == GamePhase.COW_TRADE_RESPONSE:
             if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
@@ -569,8 +570,12 @@ ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
 ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
 ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
 
+# Cow trade: Add bluff (0-value cards)
+ACTION_COW_BLUFF_BASE = ACTION_COW_OFFER_END + 1
+ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 0..10 cards
+
 # Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_OFFER_END + 1
+ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_BLUFF_END + 1
 COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
 
 N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
