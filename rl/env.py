@@ -44,6 +44,7 @@ class KuhhandelEnv(gym.Env):
 
             # auction info
             "auction_animal_type": Discrete(N_ANIMALS + 1),  # 0..N_ANIMALS-1, N_ANIMALS = none
+            "auction_animal_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 1000
             "auction_high_bid": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),  # Norm MAX_MONEY
             "auction_initiator": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
             "auction_high_bidder": Discrete(N_PLAYERS + 1), # 0..N_PLAYERS-1, N_PLAYERS = none
@@ -53,6 +54,7 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": Discrete(N_PLAYERS + 1),  # +1 for "none"
             "trade_target": Discrete(N_PLAYERS + 1),
             "trade_animal_type": Discrete(N_ANIMALS + 1),
+            "trade_animal_value": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm 1000
             # Card counts are visible, exact values are hidden
             "trade_offer_card_count": Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32), # Norm MoneyDeck.AMOUNT_MONEYCARDS
 
@@ -381,6 +383,7 @@ class KuhhandelEnv(gym.Env):
             "donkeys_revealed": np.array([self.game.donkeys_revealed / 5.0], dtype=np.float32),
             
             "auction_animal_type": auction_animal_type,
+            "auction_animal_value": np.array([self._log_normalize(self.game.current_animal.animal_type.get_value(), 1000) if self.game.current_animal else 0.0], dtype=np.float32),
             "auction_high_bid": np.array([self._log_normalize(self.game.auction_high_bid or 0, MAX_MONEY)], dtype=np.float32),
             "auction_initiator": auction_initiator,
             "auction_high_bidder": auction_high_bidder,
@@ -389,6 +392,7 @@ class KuhhandelEnv(gym.Env):
             "trade_initiator": self._rotate_player_id(self.game.trade_initiator, player_id) if self.game.trade_initiator is not None else N_PLAYERS,
             "trade_target": self._rotate_player_id(self.game.trade_target, player_id) if self.game.trade_target is not None else N_PLAYERS,
             "trade_animal_type": trade_animal_type,
+            "trade_animal_value": np.array([self._log_normalize(self.game.trade_animal_type.get_value(), 1000) if self.game.trade_animal_type else 0.0], dtype=np.float32),
             "trade_offer_card_count": np.array([self.game.trade_offer_card_count / float(MoneyDeck.AMOUNT_MONEYCARDS)], dtype=np.float32),
             
             "players_money": players_money_normalized,
