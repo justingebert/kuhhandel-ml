@@ -6,7 +6,7 @@ import functools
 from sb3_contrib import MaskablePPO
 
 from rl.env import KuhhandelEnv
-from rl.model_agent import ModelAgent
+from rl.agents.model_agent import ModelAgent
 from rl.train_selfplay import LATEST_MODEL_PATH
 
 from sb3_contrib.common.maskable import distributions as maskable_dist

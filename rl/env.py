@@ -2,15 +2,15 @@ from typing import Optional, List
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Dict, Discrete, MultiDiscrete, Box
+from gymnasium.spaces import Dict, Discrete, Box
 
 from gameengine import AnimalType, MoneyDeck
 from gameengine.actions import Actions, GameAction
 from gameengine.agent import Agent
 from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
-from rl.random_agent import RandomAgent
-from rl.rl_agent import RLAgent
+from rl.agents.random_agent import RandomAgent
+from rl.agents.rl_agent import RLAgent
 
 
 class KuhhandelEnv(gym.Env):
