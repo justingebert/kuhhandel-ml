@@ -14,7 +14,7 @@ from rl.env import KuhhandelEnv
 from rl.agents.model_agent import ModelAgent
 from tests.demo_game import RandomAgent
 
-from rl.train_selfplay import robust_apply_masking
+from rl.train.train_selfplay import robust_apply_masking
 
 original_apply_masking = maskable_dist.MaskableCategorical.apply_masking #Simplex error fix
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
