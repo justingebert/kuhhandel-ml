@@ -564,14 +564,17 @@ class Game:
 
 
         # Exchange money - select cards from amounts and transfer
+        offer_cards = []
         if self.trade_offer > 0:
             offer_cards = initiator.select_payment_cards(self.trade_offer)
-            
-            # Add bluff cards if any
-            if self.trade_offer_bluff_count > 0:
-                bluff_cards = initiator.get_cards_by_value(0, self.trade_offer_bluff_count)
-                offer_cards.extend(bluff_cards)
-            
+        
+        # Add bluff cards if any (must be transferred even if offer is 0)
+        if self.trade_offer_bluff_count > 0:
+            bluff_cards = initiator.get_cards_by_value(0, self.trade_offer_bluff_count)
+            offer_cards.extend(bluff_cards)
+        
+        # Transfer all cards (value + bluff) if any
+        if offer_cards:
             initiator.remove_money(offer_cards)
             target.add_money(offer_cards)
 

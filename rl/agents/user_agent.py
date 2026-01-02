@@ -29,6 +29,14 @@ class UserAgent(Agent):
         if game.phase == GamePhase.AUCTION_BIDDING:
             return self._handle_auction_bidding(valid_actions, game)
 
+        # 3. Special Cow Trade Offer UI
+        if game.phase == GamePhase.COW_TRADE_OFFER:
+            return self._handle_cow_trade_offer(valid_actions, game)
+        
+        # 4. Special Cow Trade Response UI
+        if game.phase == GamePhase.COW_TRADE_RESPONSE:
+            return self._handle_cow_trade_response(valid_actions, game)
+
         # Standard Action Selection
         print("\nAvailable Actions:")
         for i, action in enumerate(valid_actions):
@@ -117,6 +125,82 @@ class UserAgent(Agent):
                     print("Invalid amount input.")
             else:
                  print("Invalid selection. Please enter 0, 1, or 2.")
+
+    def _handle_cow_trade_offer(self, valid_actions: List[GameAction], game: Game) -> GameAction:
+        """Handle cow trade offer with convenience UI for amount input."""
+        # All valid actions should be COW_TRADE_OFFER type
+        offer_actions = [a for a in valid_actions if a.type == ActionType.COW_TRADE_OFFER]
+        offer_actions.sort(key=lambda x: x.amount)
+        
+        max_offer = offer_actions[-1].amount if offer_actions else 0
+        
+        target_name = game.players[game.trade_target].name if game.trade_target is not None else "Unknown"
+        animal_name = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+        
+        print(f"\nCow Trade: You are attacking {target_name} for {animal_name}")
+        print(f"Enter your offer amount (0 to {max_offer}, multiples of 10)")
+        
+        while True:
+            choice = input(f"\nEnter offer amount or 'animals'/'money': ").strip().lower()
+            
+            if choice == "animals":
+                self._print_animals(game)
+                continue
+            if choice == "money":
+                self._print_money(game)
+                continue
+            
+            try:
+                amount = int(choice)
+                
+                # Find matching action
+                for action in offer_actions:
+                    if action.amount == amount:
+                        return action
+                
+                print(f"Invalid amount. Must be between 0 and {max_offer} (multiples of 10)")
+                
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+    def _handle_cow_trade_response(self, valid_actions: List[GameAction], game: Game) -> GameAction:
+        """Handle cow trade counter-offer with convenience UI for amount input."""
+        # All valid actions should be COUNTER_OFFER type
+        counter_actions = [a for a in valid_actions if a.type == ActionType.COUNTER_OFFER]
+        counter_actions.sort(key=lambda x: x.amount)
+        
+        max_counter = counter_actions[-1].amount if counter_actions else 0
+        
+        initiator_name = game.players[game.trade_initiator].name if game.trade_initiator is not None else "Unknown"
+        animal_name = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+        card_count = game.trade_offer_card_count
+        
+        print(f"\nCow Trade Defense: {initiator_name} attacks your {animal_name}")
+        print(f"They offer {card_count} cards (hidden values)")
+        print(f"Enter your counter-offer amount (0 to {max_counter}, multiples of 10)")
+        
+        while True:
+            choice = input(f"\nEnter counter-offer amount or 'animals'/'money': ").strip().lower()
+            
+            if choice == "animals":
+                self._print_animals(game)
+                continue
+            if choice == "money":
+                self._print_money(game)
+                continue
+            
+            try:
+                amount = int(choice)
+                
+                # Find matching action
+                for action in counter_actions:
+                    if action.amount == amount:
+                        return action
+                
+                print(f"Invalid amount. Must be between 0 and {max_counter} (multiples of 10)")
+                
+            except ValueError:
+                print("Invalid input. Please enter a number.")
 
     def _print_event_log(self, game: Game):
         current_len = len(game.action_history)
