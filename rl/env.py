@@ -1,5 +1,4 @@
 from typing import Optional, List
-from enum import Enum
 
 import gymnasium as gym
 import numpy as np
