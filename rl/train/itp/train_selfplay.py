@@ -15,6 +15,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
 
 # Fix for Simplex error due to floating point precision issues
+original_apply_masking = maskable_dist.MaskableCategorical.apply_masking
 
 def robust_apply_masking(self, masks: torch.Tensor):
     # Access logits directly
@@ -23,7 +24,8 @@ def robust_apply_masking(self, masks: torch.Tensor):
     elif hasattr(self, 'probs'):
          logits = torch.log(self.probs + 1e-8)
     else:
-        raise RuntimeError("Categorical distribution has no logits or probs attribute.")
+        # Fallback - practically shouldn't happen in SB3 PPO
+        logits = torch.tensor([])
 
     HUGE_NEG = -1e8
     if masks is not None and logits.numel() > 0:
@@ -60,13 +62,13 @@ SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
 
-N_GENERATIONS = 10
-STEPS_PER_GEN = 30000  
-N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
+N_GENERATIONS = 150
+STEPS_PER_GEN = 60000  
+N_ENVS = min(multiprocessing.cpu_count(), 32) #use available cores up to a maximum of 16
 
 # Opponent Distribution
-PROB_RANDOM = 0.1
-PROB_SCHWABE = 0.8 #(Incase of Random Agent)
+PROB_RANDOM = 0.05
+PROB_SCHWABE = 0.8 #prop that random agent is swabian
 
 MODEL_CACHE = {}
 
@@ -102,7 +104,7 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
     opponents = []
     pool_files = glob.glob(f"{SELFPLAY_DIR}/*.zip")
     
-    for i in range(n_opponents):
+    for i in range(n_opponents): #review changes hier
         r = random.random()
         if not pool_files or r < PROB_RANDOM: #experiment with this
             if r < PROB_SCHWABE:
@@ -140,22 +142,31 @@ def make_env(rank: int, opponent_generator_func):
 
 
 def main():
+    # torch.autograd.set_detect_anomaly(True)
     print(f"Starting Self-Play Training with {N_ENVS} parallel environments...")
-
+    
+    
+    # Define larger network Policy
+    # [256, 256] neurons to handle sparse/large observation space
+    policy_kwargs = dict(net_arch=[256, 256])
     # create n envs for parallel training
     env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
     vec_env = SubprocVecEnv(env_fns) 
-
+    # vec_env = VecCheckNan(vec_env, raise_exception=True)
+    
+    # Define larger network Policy
     # [256, 256] neurons to handle sparse/large observation space
     policy_kwargs = dict(net_arch=[256, 256])
+
     
-    # load existing or create new one
+    # load existing pr create new one
+
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
         model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE)
     else:
         model = MaskablePPO(
             "MultiInputPolicy", 
-            vec_env,
+            vec_env, 
             verbose=1, 
             device=DEVICE,
             policy_kwargs=policy_kwargs
@@ -169,11 +180,15 @@ def main():
         # STEPS_PER_GEN is total steps. With N_ENVS, each env does STEPS / N.
         model.learn(total_timesteps=STEPS_PER_GEN, reset_num_timesteps=False)
         
-        pool_path = f"{SELFPLAY_DIR}/gen_{gen}"
+        pool_path = f"{SELFPLAY_DIR}/gen_{gen%30}"
         model.save(pool_path)
         print(f"Saved generation {gen} to {pool_path}")
         
         model.save(LATEST_MODEL_PATH)
+        with open(f"gen{gen}.txt", "w"):
+            pass
+        if gen>1:
+            os.remove(f"gen{gen-1}.txt")
 
         # Print interim timing
         elapsed_so_far = time.time() - start_time
@@ -185,5 +200,5 @@ def main():
 
 if __name__ == "__main__":
     gym.logger.min_level = gym.logger.ERROR
-    multiprocessing.freeze_support() # Windows support
+    multiprocessing.freeze_support()
     main()

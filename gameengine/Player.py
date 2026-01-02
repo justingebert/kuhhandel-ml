@@ -159,6 +159,17 @@ class Player:
 
         raise ValueError(f"Cannot pay {amount} with available money cards")
 
+    def get_cards_by_value(self, value: int, count: int) -> List[MoneyCard]:
+        """Get a specific number of cards with a specific value."""
+        found = []
+        for card in self.money:
+            if card.value == value:
+                found.append(card)
+                if len(found) == count:
+                    return found
+
+        raise ValueError(f"Player does not have {count} cards of value {value}")
+        
     def __repr__(self) -> str:
         return f"Player({self.name}, Money: {self.get_total_money()}, Animals: {len(self.animals)})"
 

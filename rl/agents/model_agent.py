@@ -19,9 +19,12 @@ class ModelAgent(Agent):
         if model_instance:
             self.model = model_instance
         else:
-            self.model = MaskablePPO.load(model_path)
+            self.model = MaskablePPO.load(model_path, device='cpu')
     
     def get_action(self, game: Game, valid_actions: List[GameAction]) -> GameAction:
+        if len(valid_actions) == 1:
+            return valid_actions[0]
+
         obs = self.env.unwrapped.get_observation_for_player(self.player_id)
 
         action_mask = self.env.unwrapped.get_action_mask_for_player(self.player_id)
