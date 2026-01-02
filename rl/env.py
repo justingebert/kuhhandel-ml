@@ -1,4 +1,5 @@
 from typing import Optional, List
+from enum import Enum
 
 import gymnasium as gym
 import numpy as np
@@ -12,16 +13,54 @@ from gameengine.game import Game, GamePhase
 from rl.agents.random_agent import RandomAgent
 from rl.agents.rl_agent import RLAgent
 
+class RewardConfig:
+    """Base configuration for reward calculation"""
+    
+    # Vulnerability penalty
+    no_money_penalty = -0.2
+    
+    # Money dominance
+    money_dominance_bonus = 0.05
+    
+    # Auction wins
+    high_bidder_wins_reward = 0.1
+    auctioneer_gets_free_reward = 0.2
+    auctioneer_gets_free_penalty = -0.2
+    auctioneer_buys_reward = 0.1
+    auctioneer_self_buy_penalty = -0.05
+    
+    # Bidding behavior
+    self_overbid_penalty = -0.1
+    overbid100_penelty = 1.0  # Divisor for overbid penalty
+    
+    # Quartets
+    quartet_bonus = 0.5
+    
+    # Cow trades
+    trade_win_base_reward = 0.1
+    trade_win_efficiency_bonus = 0.1
+    trade_loss_base_penalty = -0.1
+    trade_loss_money_compensation = 0.15
+    trade_loss_during_auction_penalty = -0.1
+    
+    # Game end
+    win_reward = 7.5
+
 
 class KuhhandelEnv(gym.Env):
 
     GAME_PHASE_MAP = {phase: i for i, phase in enumerate(GamePhase)}
 
-    def __init__(self, num_players: int = 3, opponent_generator=None):
+
+    def __init__(self, num_players: int = 3, opponent_generator=None, reward_config: RewardConfig = RewardConfig()):
         super().__init__()
 
         self.num_players = num_players
         self.opponent_generator = opponent_generator
+        
+        # Initialize reward config based on category
+        self.reward_config = reward_config
+        
         self.action_space = Discrete(N_ACTIONS)
 
         self.observation_space = Dict({
@@ -182,17 +221,18 @@ class KuhhandelEnv(gym.Env):
 
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
+        cfg = self.reward_config
 
-        #Penalty for vulnerability
+        # Penalty for vulnerability
         if self.game.players[self.rl_agent_id].get_total_money() == 0:
-            reward -= 0.2
+            reward += cfg.no_money_penalty
 
         # Money Dominance Reward: Small bonus for holding >50% of circulating money
         total_money_in_play = sum(p.get_total_money() for p in self.game.players)
-        if total_money_in_play > 0:# and self.game.donkeys_revealed > 0:
+        if total_money_in_play > 0:
             rl_money = self.game.players[self.rl_agent_id].get_total_money()
             if rl_money > 0.5 * total_money_in_play:
-                reward += 0.05
+                reward += cfg.money_dominance_bonus
 
         # Reward for winning auctions (flat bonus)
         current_history_len = len(self.game.action_history)
@@ -204,17 +244,17 @@ class KuhhandelEnv(gym.Env):
             # Check for auction wins
             if a_type == "high_bidder_wins":
                 if details["bidder"] == self.rl_agent_id:
-                    reward += 0.1
+                    reward += cfg.high_bidder_wins_reward
             elif a_type == "auctioneer_gets_free":
                 if details["auctioneer"] == self.rl_agent_id:
-                    reward += 0.2
+                    reward += cfg.auctioneer_gets_free_reward
                 else:
-                    reward -= 0.2
-            elif a_type == "auctioneer_buys": #wörs
+                    reward += cfg.auctioneer_gets_free_penalty
+            elif a_type == "auctioneer_buys":
                 if details["to"] == self.rl_agent_id:
-                    reward += 0.1
-                elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
-                    reward -= 0.05
+                    reward += cfg.auctioneer_buys_reward
+                elif details["auctioneer"] == self.rl_agent_id:
+                    reward += cfg.auctioneer_self_buy_penalty
             
             # Penalty for excessive overbidding (>10 above previous high bid)
             elif a_type == "bid":
@@ -226,8 +266,8 @@ class KuhhandelEnv(gym.Env):
                         prev_action = self.game.action_history[j]
                         if prev_action["action"] == "bid":
                             previous_high_bid = prev_action["details"]["amount"]
-                            if prev_action["details"]["player"] == self.rl_agent_id: #selbstüberbieten stoppen
-                                reward -= 0.1
+                            if prev_action["details"]["player"] == self.rl_agent_id:
+                                reward += cfg.self_overbid_penalty
                             break
                         elif prev_action["action"] == "start_auction":
                             # No previous bids in this auction
@@ -237,8 +277,8 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= (overbid_amount - 10) / 100
-                    
+                        reward -= cfg.overbid100_penelty * (overbid_amount - 10) / 100
+        
         self.last_reward_history_idx = current_history_len
 
         # Quartet Bonus: Reward building quartets while the deck is still active
@@ -247,7 +287,7 @@ class KuhhandelEnv(gym.Env):
         quartet_diff = current_quartets - self.last_quartet_count
 
         if len(self.game.animal_deck) > 0 and quartet_diff != 0:
-            reward += quartet_diff * 0.5
+            reward += quartet_diff * cfg.quartet_bonus
         
         self.last_quartet_count = current_quartets
 
@@ -258,18 +298,18 @@ class KuhhandelEnv(gym.Env):
             net_payment = result.get("net_payment")
 
             if result["winner_player_id"] == self.rl_agent_id:
-                base_reward = 0.1 * animals_transferred
+                base_reward = cfg.trade_win_base_reward * animals_transferred
                 # If paid 0, get full bonus; if paid 500+, get no bonus - normalized
-                efficiency_bonus = 0.1 * max(0, (500 - net_payment) / 500)
+                efficiency_bonus = cfg.trade_win_efficiency_bonus * max(0, (500 - net_payment) / 500)
                 reward += base_reward + efficiency_bonus
 
             elif result["loser_player_id"] == self.rl_agent_id:
-                base_penalty = -0.1 * animals_transferred
+                base_penalty = cfg.trade_loss_base_penalty * animals_transferred
                 # If received 500+, can offset the penalty entirely
-                money_compensation = 0.15 * min(1.0, net_payment / 500)
+                money_compensation = cfg.trade_loss_money_compensation * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
-                if len(self.game.animal_deck) > 0: #additional peneltry for bad trades while auctioning was possible
-                    reward -= 0.1
+                if len(self.game.animal_deck) > 0:
+                    reward += cfg.trade_loss_during_auction_penalty
 
         if not terminated:
             return reward
@@ -277,7 +317,7 @@ class KuhhandelEnv(gym.Env):
         # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return reward + 7.5
+            return reward + cfg.win_reward
 
         return reward
 
