@@ -488,3 +488,1193 @@ Time elapsed: 40.29 mins
 |    time_elapsed    | 26       |
 |    total_timesteps | 2293760  |
 ---------------------------------
+Saved generation 35 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 41.44 mins
+
+--- Generation 36 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 190      |
+|    ep_rew_mean     | -58.7    |
+| time/              |          |
+|    fps             | 2464     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2359296  |
+---------------------------------
+Saved generation 36 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_6
+Time elapsed: 42.60 mins
+
+--- Generation 37 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 193      |
+|    ep_rew_mean     | -53.9    |
+| time/              |          |
+|    fps             | 2425     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 2424832  |
+---------------------------------
+Saved generation 37 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_7
+Time elapsed: 43.76 mins
+
+--- Generation 38 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 192      |
+|    ep_rew_mean     | -53.2    |
+| time/              |          |
+|    fps             | 2445     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2490368  |
+---------------------------------
+Saved generation 38 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_8
+Time elapsed: 44.92 mins
+
+--- Generation 39 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 190      |
+|    ep_rew_mean     | -53.1    |
+| time/              |          |
+|    fps             | 2464     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2555904  |
+---------------------------------
+Saved generation 39 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_9
+Time elapsed: 46.08 mins
+
+--- Generation 40 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 191      |
+|    ep_rew_mean     | -52.5    |
+| time/              |          |
+|    fps             | 2419     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 2621440  |
+---------------------------------
+Saved generation 40 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_10
+Time elapsed: 47.25 mins
+
+--- Generation 41 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 190      |
+|    ep_rew_mean     | -54.1    |
+| time/              |          |
+|    fps             | 2402     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 2686976  |
+---------------------------------
+Saved generation 41 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_11
+Time elapsed: 48.42 mins
+
+--- Generation 42 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 189      |
+|    ep_rew_mean     | -54.5    |
+| time/              |          |
+|    fps             | 2441     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2752512  |
+---------------------------------
+Saved generation 42 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_12
+Time elapsed: 49.59 mins
+
+--- Generation 43 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 185      |
+|    ep_rew_mean     | -44.3    |
+| time/              |          |
+|    fps             | 2428     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2818048  |
+---------------------------------
+Saved generation 43 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_13
+Time elapsed: 50.76 mins
+
+--- Generation 44 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 183      |
+|    ep_rew_mean     | -49.8    |
+| time/              |          |
+|    fps             | 2384     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 2883584  |
+---------------------------------
+Saved generation 44 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_14
+Time elapsed: 51.93 mins
+
+--- Generation 45 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 187      |
+|    ep_rew_mean     | -45.8    |
+| time/              |          |
+|    fps             | 2462     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 2949120  |
+---------------------------------
+Saved generation 45 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_15
+Time elapsed: 53.09 mins
+
+--- Generation 46 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 190      |
+|    ep_rew_mean     | -46      |
+| time/              |          |
+|    fps             | 2419     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3014656  |
+---------------------------------
+Saved generation 46 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_16
+Time elapsed: 54.26 mins
+
+--- Generation 47 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 181      |
+|    ep_rew_mean     | -40.7    |
+| time/              |          |
+|    fps             | 2418     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3080192  |
+---------------------------------
+Saved generation 47 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_17
+Time elapsed: 55.44 mins
+
+--- Generation 48 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 183      |
+|    ep_rew_mean     | -39.4    |
+| time/              |          |
+|    fps             | 2344     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3145728  |
+---------------------------------
+Saved generation 48 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_18
+Time elapsed: 56.63 mins
+
+--- Generation 49 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 179      |
+|    ep_rew_mean     | -26.8    |
+| time/              |          |
+|    fps             | 2385     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3211264  |
+---------------------------------
+Saved generation 49 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_19
+Time elapsed: 57.82 mins
+
+--- Generation 50 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 183      |
+|    ep_rew_mean     | -36.6    |
+| time/              |          |
+|    fps             | 2335     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3276800  |
+---------------------------------
+Saved generation 50 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_20
+Time elapsed: 59.01 mins
+
+--- Generation 51 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 181      |
+|    ep_rew_mean     | -34.5    |
+| time/              |          |
+|    fps             | 2311     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3342336  |
+---------------------------------
+Saved generation 51 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_21
+Time elapsed: 60.21 mins
+
+--- Generation 52 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 179      |
+|    ep_rew_mean     | -39      |
+| time/              |          |
+|    fps             | 2358     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3407872  |
+---------------------------------
+Saved generation 52 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_22
+Time elapsed: 61.40 mins
+
+--- Generation 53 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 181      |
+|    ep_rew_mean     | -36.3    |
+| time/              |          |
+|    fps             | 2325     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3473408  |
+---------------------------------
+Saved generation 53 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_23
+Time elapsed: 62.61 mins
+
+--- Generation 54 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 176      |
+|    ep_rew_mean     | -23.5    |
+| time/              |          |
+|    fps             | 2337     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3538944  |
+---------------------------------
+Saved generation 54 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_24
+Time elapsed: 63.81 mins
+
+--- Generation 55 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 177      |
+|    ep_rew_mean     | -29.8    |
+| time/              |          |
+|    fps             | 2368     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3604480  |
+---------------------------------
+Saved generation 55 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_25
+Time elapsed: 65.01 mins
+
+--- Generation 56 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 177      |
+|    ep_rew_mean     | -25.7    |
+| time/              |          |
+|    fps             | 2376     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3670016  |
+---------------------------------
+Saved generation 56 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_26
+Time elapsed: 66.21 mins
+
+--- Generation 57 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 175      |
+|    ep_rew_mean     | -25.9    |
+| time/              |          |
+|    fps             | 2344     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3735552  |
+---------------------------------
+Saved generation 57 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_27
+Time elapsed: 67.41 mins
+
+--- Generation 58 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 173      |
+|    ep_rew_mean     | -24.1    |
+| time/              |          |
+|    fps             | 2305     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3801088  |
+---------------------------------
+Saved generation 58 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_28
+Time elapsed: 68.63 mins
+
+--- Generation 59 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 174      |
+|    ep_rew_mean     | -21.9    |
+| time/              |          |
+|    fps             | 2348     |
+|    iterations      | 1        |
+|    time_elapsed    | 27       |
+|    total_timesteps | 3866624  |
+---------------------------------
+Saved generation 59 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_29
+Time elapsed: 69.84 mins
+
+--- Generation 60 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 164      |
+|    ep_rew_mean     | -16.3    |
+| time/              |          |
+|    fps             | 2288     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 3932160  |
+---------------------------------
+Saved generation 60 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_0
+Time elapsed: 71.06 mins
+
+--- Generation 61 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 161      |
+|    ep_rew_mean     | -16.3    |
+| time/              |          |
+|    fps             | 2215     |
+|    iterations      | 1        |
+|    time_elapsed    | 29       |
+|    total_timesteps | 3997696  |
+---------------------------------
+Saved generation 61 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_1
+Time elapsed: 72.30 mins
+
+--- Generation 62 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 160      |
+|    ep_rew_mean     | -14.3    |
+| time/              |          |
+|    fps             | 2291     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 4063232  |
+---------------------------------
+Saved generation 62 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_2
+Time elapsed: 73.53 mins
+
+--- Generation 63 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 161      |
+|    ep_rew_mean     | -17.4    |
+| time/              |          |
+|    fps             | 2237     |
+|    iterations      | 1        |
+|    time_elapsed    | 29       |
+|    total_timesteps | 4128768  |
+---------------------------------
+Saved generation 63 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_3
+Time elapsed: 74.78 mins
+
+--- Generation 64 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 159      |
+|    ep_rew_mean     | -12.2    |
+| time/              |          |
+|    fps             | 2252     |
+|    iterations      | 1        |
+|    time_elapsed    | 29       |
+|    total_timesteps | 4194304  |
+---------------------------------
+Saved generation 64 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_4
+Time elapsed: 76.03 mins
+
+--- Generation 65 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 160      |
+|    ep_rew_mean     | -15.2    |
+| time/              |          |
+|    fps             | 2220     |
+|    iterations      | 1        |
+|    time_elapsed    | 29       |
+|    total_timesteps | 4259840  |
+---------------------------------
+Saved generation 65 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 77.29 mins
+
+--- Generation 66 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 154      |
+|    ep_rew_mean     | -11      |
+| time/              |          |
+|    fps             | 2170     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4325376  |
+---------------------------------
+Saved generation 66 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_6
+Time elapsed: 78.57 mins
+
+--- Generation 67 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 152      |
+|    ep_rew_mean     | -8.25    |
+| time/              |          |
+|    fps             | 2174     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4390912  |
+---------------------------------
+Saved generation 67 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_7
+Time elapsed: 79.85 mins
+
+--- Generation 68 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 152      |
+|    ep_rew_mean     | -8.77    |
+| time/              |          |
+|    fps             | 2170     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4456448  |
+---------------------------------
+Saved generation 68 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_8
+Time elapsed: 81.12 mins
+
+--- Generation 69 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 154      |
+|    ep_rew_mean     | -5.42    |
+| time/              |          |
+|    fps             | 2181     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4521984  |
+---------------------------------
+Saved generation 69 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_9
+Time elapsed: 82.40 mins
+
+--- Generation 70 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 149      |
+|    ep_rew_mean     | -5.96    |
+| time/              |          |
+|    fps             | 2157     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4587520  |
+---------------------------------
+Saved generation 70 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_10
+Time elapsed: 83.70 mins
+
+--- Generation 71 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 149      |
+|    ep_rew_mean     | -12.8    |
+| time/              |          |
+|    fps             | 2151     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4653056  |
+---------------------------------
+Saved generation 71 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_11
+Time elapsed: 85.00 mins
+
+--- Generation 72 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 144      |
+|    ep_rew_mean     | -3.26    |
+| time/              |          |
+|    fps             | 2149     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4718592  |
+---------------------------------
+Saved generation 72 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_12
+Time elapsed: 86.34 mins
+
+--- Generation 73 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 143      |
+|    ep_rew_mean     | -7.61    |
+| time/              |          |
+|    fps             | 2126     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 4784128  |
+---------------------------------
+Saved generation 73 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_13
+Time elapsed: 87.67 mins
+
+--- Generation 74 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 146      |
+|    ep_rew_mean     | -7.34    |
+| time/              |          |
+|    fps             | 2089     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 4849664  |
+---------------------------------
+Saved generation 74 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_14
+Time elapsed: 89.03 mins
+
+--- Generation 75 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 142      |
+|    ep_rew_mean     | -5.2     |
+| time/              |          |
+|    fps             | 2105     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 4915200  |
+---------------------------------
+Saved generation 75 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_15
+Time elapsed: 90.39 mins
+
+--- Generation 76 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 136      |
+|    ep_rew_mean     | -2.63    |
+| time/              |          |
+|    fps             | 2073     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 4980736  |
+---------------------------------
+Saved generation 76 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_16
+Time elapsed: 91.77 mins
+
+--- Generation 77 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 137      |
+|    ep_rew_mean     | -3.39    |
+| time/              |          |
+|    fps             | 2117     |
+|    iterations      | 1        |
+|    time_elapsed    | 30       |
+|    total_timesteps | 5046272  |
+---------------------------------
+Saved generation 77 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_17
+Time elapsed: 93.11 mins
+
+--- Generation 78 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 137      |
+|    ep_rew_mean     | 0.413    |
+| time/              |          |
+|    fps             | 2073     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5111808  |
+---------------------------------
+Saved generation 78 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_18
+Time elapsed: 94.49 mins
+
+--- Generation 79 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 134      |
+|    ep_rew_mean     | 0.242    |
+| time/              |          |
+|    fps             | 2090     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5177344  |
+---------------------------------
+Saved generation 79 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_19
+Time elapsed: 95.87 mins
+
+--- Generation 80 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 134      |
+|    ep_rew_mean     | -1.56    |
+| time/              |          |
+|    fps             | 2075     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5242880  |
+---------------------------------
+Saved generation 80 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_20
+Time elapsed: 97.24 mins
+
+--- Generation 81 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 137      |
+|    ep_rew_mean     | -1.36    |
+| time/              |          |
+|    fps             | 2080     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5308416  |
+---------------------------------
+Saved generation 81 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_21
+Time elapsed: 98.60 mins
+
+--- Generation 82 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 135      |
+|    ep_rew_mean     | -0.748   |
+| time/              |          |
+|    fps             | 2097     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5373952  |
+---------------------------------
+Saved generation 82 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_22
+Time elapsed: 99.98 mins
+
+--- Generation 83 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 135      |
+|    ep_rew_mean     | 3.28     |
+| time/              |          |
+|    fps             | 2071     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5439488  |
+---------------------------------
+Saved generation 83 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_23
+Time elapsed: 101.37 mins
+
+--- Generation 84 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 132      |
+|    ep_rew_mean     | 1.38     |
+| time/              |          |
+|    fps             | 2062     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5505024  |
+---------------------------------
+Saved generation 84 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_24
+Time elapsed: 102.76 mins
+
+--- Generation 85 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 129      |
+|    ep_rew_mean     | 6.13     |
+| time/              |          |
+|    fps             | 2051     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 5570560  |
+---------------------------------
+Saved generation 85 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_25
+Time elapsed: 104.11 mins
+
+--- Generation 86 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 126      |
+|    ep_rew_mean     | 6.4      |
+| time/              |          |
+|    fps             | 2035     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5636096  |
+---------------------------------
+Saved generation 86 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_26
+Time elapsed: 105.51 mins
+
+--- Generation 87 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 127      |
+|    ep_rew_mean     | 3.97     |
+| time/              |          |
+|    fps             | 2035     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5701632  |
+---------------------------------
+Saved generation 87 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_27
+Time elapsed: 106.85 mins
+
+--- Generation 88 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 125      |
+|    ep_rew_mean     | 7.93     |
+| time/              |          |
+|    fps             | 2035     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5767168  |
+---------------------------------
+Saved generation 88 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_28
+Time elapsed: 108.22 mins
+
+--- Generation 89 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 124      |
+|    ep_rew_mean     | 8.2      |
+| time/              |          |
+|    fps             | 2033     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5832704  |
+---------------------------------
+Saved generation 89 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_29
+Time elapsed: 109.57 mins
+
+--- Generation 90 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 121      |
+|    ep_rew_mean     | 9.34     |
+| time/              |          |
+|    fps             | 2044     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5898240  |
+---------------------------------
+Saved generation 90 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_0
+Time elapsed: 110.90 mins
+
+--- Generation 91 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 125      |
+|    ep_rew_mean     | 7.75     |
+| time/              |          |
+|    fps             | 2013     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 5963776  |
+---------------------------------
+Saved generation 91 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_1
+Time elapsed: 112.22 mins
+
+--- Generation 92 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 124      |
+|    ep_rew_mean     | 7.17     |
+| time/              |          |
+|    fps             | 2042     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6029312  |
+---------------------------------
+Saved generation 92 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_2
+Time elapsed: 113.57 mins
+
+--- Generation 93 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 121      |
+|    ep_rew_mean     | 10.3     |
+| time/              |          |
+|    fps             | 2026     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6094848  |
+---------------------------------
+Saved generation 93 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_3
+Time elapsed: 114.95 mins
+
+--- Generation 94 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 120      |
+|    ep_rew_mean     | 11       |
+| time/              |          |
+|    fps             | 2000     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6160384  |
+---------------------------------
+Saved generation 94 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_4
+Time elapsed: 116.32 mins
+
+--- Generation 95 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 121      |
+|    ep_rew_mean     | 10.1     |
+| time/              |          |
+|    fps             | 2036     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6225920  |
+---------------------------------
+Saved generation 95 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 117.68 mins
+
+--- Generation 96 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 119      |
+|    ep_rew_mean     | 11.2     |
+| time/              |          |
+|    fps             | 2022     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6291456  |
+---------------------------------
+Saved generation 96 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_6
+Time elapsed: 119.05 mins
+
+--- Generation 97 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 119      |
+|    ep_rew_mean     | 10.7     |
+| time/              |          |
+|    fps             | 2041     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6356992  |
+---------------------------------
+Saved generation 97 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_7
+Time elapsed: 120.45 mins
+
+--- Generation 98 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 118      |
+|    ep_rew_mean     | 11       |
+| time/              |          |
+|    fps             | 2040     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6422528  |
+---------------------------------
+Saved generation 98 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_8
+Time elapsed: 121.86 mins
+
+--- Generation 99 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 12.7     |
+| time/              |          |
+|    fps             | 2015     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6488064  |
+---------------------------------
+Saved generation 99 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_9
+Time elapsed: 123.30 mins
+
+--- Generation 100 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 119      |
+|    ep_rew_mean     | 12.5     |
+| time/              |          |
+|    fps             | 2019     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6553600  |
+---------------------------------
+Saved generation 100 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_10
+Time elapsed: 124.68 mins
+
+--- Generation 101 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 13.7     |
+| time/              |          |
+|    fps             | 2038     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6619136  |
+---------------------------------
+Saved generation 101 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_11
+Time elapsed: 126.10 mins
+
+--- Generation 102 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 119      |
+|    ep_rew_mean     | 12.1     |
+| time/              |          |
+|    fps             | 2048     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 6684672  |
+---------------------------------
+Saved generation 102 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_12
+Time elapsed: 127.53 mins
+
+--- Generation 103 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 13.3     |
+| time/              |          |
+|    fps             | 2019     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6750208  |
+---------------------------------
+Saved generation 103 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_13
+Time elapsed: 128.97 mins
+
+--- Generation 104 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 119      |
+|    ep_rew_mean     | 11.5     |
+| time/              |          |
+|    fps             | 2035     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6815744  |
+---------------------------------
+Saved generation 104 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_14
+Time elapsed: 130.41 mins
+
+--- Generation 105 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 12.9     |
+| time/              |          |
+|    fps             | 2040     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6881280  |
+---------------------------------
+Saved generation 105 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_15
+Time elapsed: 131.83 mins
+
+--- Generation 106 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 14.4     |
+| time/              |          |
+|    fps             | 2023     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 6946816  |
+---------------------------------
+Saved generation 106 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_16
+Time elapsed: 133.27 mins
+
+--- Generation 107 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 12.9     |
+| time/              |          |
+|    fps             | 2018     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7012352  |
+---------------------------------
+Saved generation 107 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_17
+Time elapsed: 134.70 mins
+
+--- Generation 108 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 114      |
+|    ep_rew_mean     | 14.7     |
+| time/              |          |
+|    fps             | 2030     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7077888  |
+---------------------------------
+Saved generation 108 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_18
+Time elapsed: 136.14 mins
+
+--- Generation 109 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 14.7     |
+| time/              |          |
+|    fps             | 2025     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7143424  |
+---------------------------------
+Saved generation 109 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_19
+Time elapsed: 137.58 mins
+
+--- Generation 110 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 114      |
+|    ep_rew_mean     | 14.7     |
+| time/              |          |
+|    fps             | 2037     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7208960  |
+---------------------------------
+Saved generation 110 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_20
+Time elapsed: 139.00 mins
+
+--- Generation 111 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 14.6     |
+| time/              |          |
+|    fps             | 2046     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7274496  |
+---------------------------------
+Saved generation 111 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_21
+Time elapsed: 140.43 mins
+
+--- Generation 112 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 12.7     |
+| time/              |          |
+|    fps             | 2045     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7340032  |
+---------------------------------
+Saved generation 112 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_22
+Time elapsed: 141.87 mins
+
+--- Generation 113 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 16       |
+| time/              |          |
+|    fps             | 2023     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7405568  |
+---------------------------------
+Saved generation 113 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_23
+Time elapsed: 143.31 mins
+
+--- Generation 114 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 116      |
+|    ep_rew_mean     | 15.3     |
+| time/              |          |
+|    fps             | 2050     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 7471104  |
+---------------------------------
+Saved generation 114 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_24
+Time elapsed: 144.75 mins
+
+--- Generation 115 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 14.7     |
+| time/              |          |
+|    fps             | 2047     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7536640  |
+---------------------------------
+Saved generation 115 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_25
+Time elapsed: 146.19 mins
+
+--- Generation 116 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 14.3     |
+| time/              |          |
+|    fps             | 2056     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 7602176  |
+---------------------------------
+Saved generation 116 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_26
+Time elapsed: 147.63 mins
+
+--- Generation 117 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 115      |
+|    ep_rew_mean     | 15.5     |
+| time/              |          |
+|    fps             | 2046     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7667712  |
+---------------------------------
+Saved generation 117 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_27
+Time elapsed: 149.08 mins
+
+--- Generation 118 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 117      |
+|    ep_rew_mean     | 15.7     |
+| time/              |          |
+|    fps             | 2058     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 7733248  |
+---------------------------------
+Saved generation 118 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_28
+Time elapsed: 150.53 mins
+
+--- Generation 119 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 113      |
+|    ep_rew_mean     | 16.8     |
+| time/              |          |
+|    fps             | 2043     |
+|    iterations      | 1        |
+|    time_elapsed    | 32       |
+|    total_timesteps | 7798784  |
+---------------------------------
+Saved generation 119 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_29
+Time elapsed: 151.98 mins
+
+--- Generation 120 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 114      |
+|    ep_rew_mean     | 15.9     |
+| time/              |          |
+|    fps             | 2054     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 7864320  |
+---------------------------------
