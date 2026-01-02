@@ -2,7 +2,7 @@ import os
 import sys
 import random
 
-from rl.random_agent import RandomAgent
+from rl.agents.random_agent import RandomAgent
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

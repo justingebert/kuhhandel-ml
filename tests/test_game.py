@@ -334,6 +334,10 @@ class TestTrade:
 
         # Step 3: Make offer
         game.choose_cow_trade_offer(10)
+        assert game.phase == GamePhase.COW_TRADE_BLUFF
+        
+        # Step 4: Add bluff (0 cards)
+        game.choose_cow_trade_bluff(0)
         assert game.phase == GamePhase.COW_TRADE_RESPONSE
         assert game.trade_offer == 10
 
@@ -344,6 +348,8 @@ class TestTrade:
         game.choose_cow_trade_opponent(1)
         game.choose_cow_trade_animal(AnimalType.COW)
         game.choose_cow_trade_offer(0)  # Bluff with 0
+        
+        game.choose_cow_trade_bluff(0)
 
         assert game.trade_offer == 0
         assert game.phase == GamePhase.COW_TRADE_RESPONSE
@@ -357,6 +363,7 @@ class TestTrade:
         game.choose_cow_trade_opponent(1)
         game.choose_cow_trade_animal(AnimalType.COW)
         game.choose_cow_trade_offer(10)
+        game.choose_cow_trade_bluff(0)
 
         # Counter with 0 (initiator wins)
         game.choose_cow_trade_counter_offer(0)
@@ -375,6 +382,7 @@ class TestTrade:
         game.choose_cow_trade_opponent(1)
         game.choose_cow_trade_animal(AnimalType.COW)
         game.choose_cow_trade_offer(0)
+        game.choose_cow_trade_bluff(0)
 
         # Counter with 10 (higher)
         game.choose_cow_trade_counter_offer(10)
@@ -393,6 +401,7 @@ class TestTrade:
         game.choose_cow_trade_opponent(1)
         game.choose_cow_trade_animal(AnimalType.COW)
         game.choose_cow_trade_offer(10)
+        game.choose_cow_trade_bluff(0)
 
         # Counter with 0 (lower)
         game.choose_cow_trade_counter_offer(0)
@@ -410,6 +419,7 @@ class TestTrade:
         game.choose_cow_trade_opponent(1)
         game.choose_cow_trade_animal(AnimalType.COW)
         game.choose_cow_trade_offer(10)
+        game.choose_cow_trade_bluff(0)
 
         # Counter with 10 (tie)
         game.choose_cow_trade_counter_offer(10)

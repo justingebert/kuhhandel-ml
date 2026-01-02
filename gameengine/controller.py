@@ -43,6 +43,8 @@ class GameController:
             self._handle_cow_trade_choose_animal()
         elif self.game.phase == GamePhase.COW_TRADE_OFFER:
             self._handle_cow_trade_offer()
+        elif self.game.phase == GamePhase.COW_TRADE_BLUFF:
+            self._handle_cow_trade_bluff()
         elif self.game.phase == GamePhase.COW_TRADE_RESPONSE:
             self._handle_cow_trade_response()
         elif self.game.phase == GamePhase.GAME_OVER:
@@ -146,6 +148,14 @@ class GameController:
         action = agent.get_action(self.game, valid_actions)
 
         self.game.choose_cow_trade_offer(action.amount)
+
+    def _handle_cow_trade_bluff(self):
+        agent = self.agents[self.game.current_player_idx]
+
+        valid_actions = self.game.get_valid_actions(self.game.current_player_idx)
+        action = agent.get_action(self.game, valid_actions)
+
+        self.game.choose_cow_trade_bluff(action.amount)
 
 
     def _handle_cow_trade_response(self):
