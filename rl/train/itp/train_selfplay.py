@@ -11,7 +11,7 @@ from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecCheckNan
+from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
 
 # Fix for Simplex error due to floating point precision issues
@@ -45,9 +45,9 @@ def robust_apply_masking(self, masks: torch.Tensor):
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 from rl.env import KuhhandelEnv
-from rl.model_agent import ModelAgent
-from rl.random_agent import RandomAgent
-from rl.rdm_schwaben_agent import RandomSchwabenAgent
+from rl.agents.model_agent import ModelAgent
+from rl.agents.random_agent import RandomAgent
+from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
 
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
