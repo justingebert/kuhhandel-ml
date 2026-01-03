@@ -464,7 +464,12 @@ class KuhhandelEnv(gym.Env):
             elif action.type == ActionType.COW_TRADE_CHOOSE_OPPONENT:
                 # Map opponent ID to action index
                 target_id = action.target_id
-                action_idx = ACTION_COW_CHOOSE_OPP_BASE + target_id
+                # relative_id: 1 for next player, 2 for next-next player, etc.
+                relative_id = (target_id - player_id) % N_PLAYERS
+                # Valid relative_id is 1..(N_PLAYERS-1). Map 1->0, 2->1, etc.
+                action_offset = relative_id - 1
+                action_idx = ACTION_COW_CHOOSE_OPP_BASE + action_offset
+                
                 if ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
                     mask[action_idx] = 1
 
@@ -528,7 +533,11 @@ class KuhhandelEnv(gym.Env):
                 return Actions.start_auction()
             elif ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
                 opponent_offset = action_idx - ACTION_COW_CHOOSE_OPP_BASE
-                return Actions.cow_trade_choose_opponent(opponent_offset)
+                # offset 0 -> relative 1 (next player)
+                # offset 1 -> relative 2 (next-next player)
+                relative_id = opponent_offset + 1
+                target_id = (game.current_player_idx + relative_id) % N_PLAYERS
+                return Actions.cow_trade_choose_opponent(target_id)
 
         elif game.phase == GamePhase.AUCTION_BIDDING:
             # Shared money actions for bidding
