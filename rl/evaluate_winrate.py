@@ -20,7 +20,7 @@ original_apply_masking = maskable_dist.MaskableCategorical.apply_masking #Simple
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"
+DEFAULT_MODEL_PATH = SCRIPT_DIR / "train" /"models" / "kuhhandel_ppo_latest"
 
 # Global model cache per subprocess to avoid loading the same model multiple times
 _MODEL_CACHE = {}
