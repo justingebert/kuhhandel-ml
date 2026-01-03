@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from gameengine.agent import Agent
 from gameengine.game import Game, GamePhase
 from gameengine.actions import GameAction, ActionType
+import datetime
 
 class UserAgent(Agent):
     """An agent that allows a human user to play via the terminal."""
@@ -43,13 +44,16 @@ class UserAgent(Agent):
             print(f"[{i}] {self._format_action(action)}")
             
         while True:
-            choice = input(f"\nSelect action (0-{len(valid_actions)-1}) or 'animals'/'money': ").strip().lower()
+            choice = input(f"\nSelect action (0-{len(valid_actions)-1}) or 'animals'/'cardcount': ").strip().lower()
             
             if choice == "animals":
                 self._print_animals(game)
                 continue
             if choice == "money":
                 self._print_money(game)
+                continue
+            if choice == "cardcount":
+                self._print_cardcount(game)
                 continue
                 
             try:
@@ -247,7 +251,10 @@ class UserAgent(Agent):
             return f"{p_name(details['auctioneer'])} gets animal for free (no bids)."
 
         elif action_type == "start_cow_trade":
-            return f"Cow Trade: {p_name(details['initiator'])} attacks {p_name(details['target'])} for {details['animal']}."
+            msg = f"Cow Trade: {p_name(details['initiator'])} attacks {p_name(details['target'])} for {details['animal']}."
+            if "offer_card_count" in details:
+                msg += f" (Offer: {details['offer_card_count']} cards)"
+            return msg
             
         elif action_type == "cow_trade_offer":
              pass
@@ -276,6 +283,20 @@ class UserAgent(Agent):
                     winner = p_name(target_id)
                     loser = p_name(initiator_id)
                 
+                # --- DIAGNOSTIC LOGGING START ---
+                try:
+                    with open("cow_trade_debug.log", "a") as f:
+                        ts = datetime.datetime.now().isoformat()
+                        offer_v = details.get("offer", "MISSING")
+                        counter_v = details.get("counter", "MISSING")
+                        calc_net = abs(details.get("counter", 0) - details.get("offer", 0))
+                        f.write(f"[{ts}] ResolveTrade: Winner={winner}, Offer={offer_v}, Counter={counter_v}, CalcNet={calc_net}\n")
+                        f.write(f"    Full Details: {details}\n")
+                        f.write("-" * 40 + "\n")
+                except Exception:
+                    pass # Silent fail to not disturb game
+                # --- DIAGNOSTIC LOGGING END ---
+
                 net_payment = abs(details.get("counter", 0)-details.get("offer", 0))
 
                 msg = f"Trade Result: {winner} wins! Takes {details['animals_transferred']} animals from {loser}."
@@ -337,7 +358,16 @@ class UserAgent(Agent):
             for animal_type, count in p.get_animal_counts().items():
                 if count > 0:
                     animals_str.append(f"{animal_type.display_name}: {count}")
-            print(f"{p.name} (Player {p.player_id}): {', '.join(animals_str) if animals_str else 'None'}")
+            print(f"{p.name} (Player {p.player_id}): {', '.join(animals_str) if animals_str else 'None'}")       
+        print(f"{'='*20}\n")
+
+    def _print_cardcount(self, game: Game):
+        print(f"\n{'='*20}")
+        print("OPPONENT CARD COUNT")
+        for p in game.players:
+            if p.player_id == self.player_id:
+                continue
+            print(f"{p.name} (Player {p.player_id}): {len(p.money)}")
         print(f"{'='*20}\n")
 
     def _print_money(self, game: Game):
