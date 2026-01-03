@@ -1,0 +1,125 @@
+Starting Self-Play Training with 32 parallel environments...
+
+--- Generation 1 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 192      |
+|    ep_rew_mean     | -83.5    |
+| time/              |          |
+|    fps             | 2439     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 557056   |
+---------------------------------
+Saved generation 1 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_1
+Time elapsed: 0.87 mins
+
+--- Generation 2 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 195      |
+|    ep_rew_mean     | -87.5    |
+| time/              |          |
+|    fps             | 2888     |
+|    iterations      | 1        |
+|    time_elapsed    | 22       |
+|    total_timesteps | 622592   |
+---------------------------------
+Saved generation 2 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_2
+Time elapsed: 1.66 mins
+
+--- Generation 3 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 193      |
+|    ep_rew_mean     | -82.9    |
+| time/              |          |
+|    fps             | 2983     |
+|    iterations      | 1        |
+|    time_elapsed    | 21       |
+|    total_timesteps | 688128   |
+---------------------------------
+Saved generation 3 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_3
+Time elapsed: 2.44 mins
+
+--- Generation 4 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 191      |
+|    ep_rew_mean     | -89.2    |
+| time/              |          |
+|    fps             | 2916     |
+|    iterations      | 1        |
+|    time_elapsed    | 22       |
+|    total_timesteps | 753664   |
+---------------------------------
+Saved generation 4 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_4
+Time elapsed: 3.23 mins
+
+--- Generation 5 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 194      |
+|    ep_rew_mean     | -78      |
+| time/              |          |
+|    fps             | 3004     |
+|    iterations      | 1        |
+|    time_elapsed    | 21       |
+|    total_timesteps | 819200   |
+---------------------------------
+Saved generation 5 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 4.01 mins
+
+--- Generation 6 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 194      |
+|    ep_rew_mean     | -86      |
+| time/              |          |
+|    fps             | 2895     |
+|    iterations      | 1        |
+|    time_elapsed    | 22       |
+|    total_timesteps | 884736   |
+---------------------------------
+Saved generation 6 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_6
+Time elapsed: 4.80 mins
+
+--- Generation 7 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 194      |
+|    ep_rew_mean     | -82.7    |
+| time/              |          |
+|    fps             | 2911     |
+|    iterations      | 1        |
+|    time_elapsed    | 22       |
+|    total_timesteps | 950272   |
+---------------------------------
+Saved generation 7 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_7
+Time elapsed: 5.58 mins
+
+--- Generation 8 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 199      |
+|    ep_rew_mean     | -82.9    |
+| time/              |          |
+|    fps             | 2829     |
+|    iterations      | 1        |
+|    time_elapsed    | 23       |
+|    total_timesteps | 1015808  |
+---------------------------------
+Saved generation 8 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_8
+Time elapsed: 6.38 mins
+
+--- Generation 9 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 194      |
+|    ep_rew_mean     | -75.8    |
+| time/              |          |
+|    fps             | 2898     |
+|    iterations      | 1        |
+|    time_elapsed    | 22       |
+|    total_timesteps | 1081344  |
+---------------------------------
