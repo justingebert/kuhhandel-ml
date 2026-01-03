@@ -13,6 +13,7 @@ from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 import torch
+from rl.env import RewardMinimalAggressiveConfig
 
 # Fix for Simplex error due to floating point precision issues
 
@@ -126,7 +127,7 @@ def make_env(rank: int, opponent_generator_func):
     def _init():
         torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
         
-        env = KuhhandelEnv(num_players=3)
+        env = KuhhandelEnv(num_players=3, reward_config=RewardMinimalAggressiveConfig())
         
         env.opponent_generator = opponent_generator_func
         
