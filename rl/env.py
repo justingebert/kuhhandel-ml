@@ -438,6 +438,9 @@ class KuhhandelEnv(gym.Env):
         """
         Return a binary mask of valid actions for specific player.
         1 = action is valid, 0 = action is invalid.
+        
+        Money actions use shared space (ACTION_MONEY_SHARED_BASE to END) and
+        are masked based on current game phase.
         """
         from gameengine.actions import ActionType
 
@@ -448,7 +451,7 @@ class KuhhandelEnv(gym.Env):
 
         # Get player's total money for constraining bids/offers
         player_money = self.game.players[player_id].get_total_money()
-        max_bid_level = player_money // MONEY_STEP
+        max_money_level = player_money // MONEY_STEP
 
         # Get current highest bid for auction constraints
         current_high_bid = self.game.auction_high_bid or 0
@@ -466,16 +469,15 @@ class KuhhandelEnv(gym.Env):
                     mask[action_idx] = 1
 
             elif action.type == ActionType.AUCTION_PASS:
-                # Pass is always valid during bidding
-                mask[ACTION_AUCTION_BID_BASE] = 1
+                # Pass is represented by money level 0 in shared space
+                mask[ACTION_MONEY_SHARED_BASE] = 1
 
             elif action.type == ActionType.AUCTION_BID:
-                # Only enable bids that are:
-                # 1. Higher than current highest bid
-                # 2. Within player's money
-                for bid_level in range(min_bid_level, max_bid_level + 1):
-                    action_idx = ACTION_AUCTION_BID_BASE + bid_level
-                    if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
+                # Enable valid bids in shared money space
+                # Bids must be: 1) higher than current high bid, 2) within player's money
+                for bid_level in range(min_bid_level, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + bid_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.PASS_AS_AUCTIONEER:
@@ -492,17 +494,17 @@ class KuhhandelEnv(gym.Env):
                     mask[action_idx] = 1
 
             elif action.type == ActionType.COW_TRADE_OFFER:
-                # Only enable offers within player's money (0 to max_bid_level)
-                for offer_level in range(0, max_bid_level + 1):
-                    action_idx = ACTION_COW_OFFER_BASE + offer_level
-                    if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
+                # Enable offers in shared money space (0 to player's max money)
+                for offer_level in range(0, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + offer_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.COUNTER_OFFER:
-                # Only enable counter offers within player's money (0 to max_bid_level)
-                for counter_level in range(0, max_bid_level + 1):
-                    action_idx = ACTION_COW_RESP_COUNTER_BASE + counter_level
-                    if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
+                # Enable counter-offers in shared money space (0 to player's max money)
+                for counter_level in range(0, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + counter_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.COW_TRADE_ADD_BLUFF:
@@ -529,8 +531,9 @@ class KuhhandelEnv(gym.Env):
                 return Actions.cow_trade_choose_opponent(opponent_offset)
 
         elif game.phase == GamePhase.AUCTION_BIDDING:
-            if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
-                bid_level = action_idx - ACTION_AUCTION_BID_BASE
+            # Shared money actions for bidding
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                bid_level = action_idx - ACTION_MONEY_SHARED_BASE
                 if bid_level == 0:
                     return Actions.pass_action()
                 else:
@@ -550,8 +553,9 @@ class KuhhandelEnv(gym.Env):
                 return Actions.cow_trade_choose_animal(animal_type)
 
         elif game.phase == GamePhase.COW_TRADE_OFFER:
-            if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
-                offer_level = action_idx - ACTION_COW_OFFER_BASE
+            # Shared money actions for offering
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                offer_level = action_idx - ACTION_MONEY_SHARED_BASE
                 offer_amount = offer_level * MONEY_STEP
                 return Actions.cow_trade_offer(offer_amount)
 
@@ -561,8 +565,9 @@ class KuhhandelEnv(gym.Env):
                 return Actions.cow_trade_add_bluff(amount)
 
         elif game.phase == GamePhase.COW_TRADE_RESPONSE:
-            if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
-                counter_level = action_idx - ACTION_COW_RESP_COUNTER_BASE
+            # Shared money actions for counter-offering
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                counter_level = action_idx - ACTION_MONEY_SHARED_BASE
                 counter_amount = counter_level * MONEY_STEP
                 return Actions.counter_offer(counter_amount)
 
@@ -588,33 +593,27 @@ ACTION_START_AUCTION = 0
 
 # Cow trade: choose opponent
 ACTION_COW_CHOOSE_OPP_BASE = ACTION_START_AUCTION + 1
-ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + N_PLAYERS - 1
-
-# Auction bidding (non-auctioneer):
-# action k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
-# k=0 means "pass"
-ACTION_AUCTION_BID_BASE = ACTION_COW_CHOOSE_OPP_END + 1
-AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS - 1
+ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + (N_PLAYERS - 1) - 1  # 2 (only 2 opponents, not including self)
 
 # Auctioneer decision
-ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END + 1
-ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
+ACTION_AUCTIONEER_ACCEPT = ACTION_COW_CHOOSE_OPP_END + 1  # 3
+ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1  # 4
 
 # Cow trade: choose animal type (0..N_ANIMALS-1)
-ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1
-ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
+ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1  # 5
+ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1  # 14
 
-# Cow trade: A's offer amount
-# action k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
-ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
-ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
+# SHARED Money actions (used for bidding, offers, counter-offers)
+# Interpretation depends on game phase:
+#   - AUCTION_BIDDING: bid (level 0 = pass, level 1+ = bid amount)
+#   - COW_TRADE_OFFER: offer amount
+#   - COW_TRADE_RESPONSE: counter-offer amount
+# action k: amount = k * MONEY_STEP, k = 0..N_MONEY_LEVELS-1
+ACTION_MONEY_SHARED_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1  # 15
+ACTION_MONEY_SHARED_END = ACTION_MONEY_SHARED_BASE + N_MONEY_LEVELS - 1  # 485
 
 # Cow trade: Add bluff (0-value cards)
-ACTION_COW_BLUFF_BASE = ACTION_COW_OFFER_END + 1
-ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 0..10 cards
+ACTION_COW_BLUFF_BASE = ACTION_MONEY_SHARED_END + 1  # 486
+ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 496 (0..10 cards)
 
-# Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_BLUFF_END + 1
-COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
-
-N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
+N_ACTIONS = ACTION_COW_BLUFF_END + 1  # 497
