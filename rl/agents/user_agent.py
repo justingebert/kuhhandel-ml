@@ -251,10 +251,7 @@ class UserAgent(Agent):
             return f"{p_name(details['auctioneer'])} gets animal for free (no bids)."
 
         elif action_type == "start_cow_trade":
-            msg = f"Cow Trade: {p_name(details['initiator'])} attacks {p_name(details['target'])} for {details['animal']}."
-            if "offer_card_count" in details:
-                msg += f" (Offer: {details['offer_card_count']} cards)"
-            return msg
+            return f"Cow Trade: {p_name(details['initiator'])} attacks {p_name(details['target'])} for {details['animal']}."
             
         elif action_type == "cow_trade_offer":
              pass
