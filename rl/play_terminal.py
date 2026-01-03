@@ -15,7 +15,7 @@ maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 def play_terminal():
     parser = argparse.ArgumentParser(description="Play Kuhhandel against AI in the terminal.")
     parser.add_argument("--players", type=int, default=3, help="Number of players (3-5)")
-    parser.add_argument("--model_path", type=str, default="rl/models/kuhhandel_ppo_latest.zip", help="Path to opponent model")
+    parser.add_argument("--model_path", type=str, default="rl/train/models/kuhhandel_ppo_latest.zip", help="Path to opponent model")
     args = parser.parse_args()
 
     num_players = args.players
