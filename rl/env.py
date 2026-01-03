@@ -43,7 +43,7 @@ class RewardConfig:
     trade_loss_during_auction_penalty = -0.1
     
     # Game end
-    win_reward = 7.5
+    win_reward = 2
 
 
 class KuhhandelEnv(gym.Env):
