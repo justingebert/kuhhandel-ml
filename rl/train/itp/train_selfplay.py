@@ -58,6 +58,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 MODEL_DIR = SCRIPT_DIR / "models"
 
 LOG_DIR = "logs"
+TB_LOG_DIR = f"{SCRIPT_DIR}/tensorboard_logs"
 SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
 LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
 FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
@@ -162,14 +163,15 @@ def main():
     # load existing pr create new one
 
     if os.path.exists(LATEST_MODEL_PATH + ".zip"):
-        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE)
+        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE, tensorboard_log=TB_LOG_DIR)
     else:
         model = MaskablePPO(
             "MultiInputPolicy", 
             vec_env, 
             verbose=1, 
             device=DEVICE,
-            policy_kwargs=policy_kwargs
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=TB_LOG_DIR
         )
     
     start_time = time.time()
