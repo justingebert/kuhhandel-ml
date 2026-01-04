@@ -1,0 +1,97 @@
+Starting Self-Play Training with 32 parallel environments...
+
+--- Generation 1 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 160      |
+|    ep_rew_mean     | 0.87     |
+| time/              |          |
+|    fps             | 1611     |
+|    iterations      | 1        |
+|    time_elapsed    | 40       |
+|    total_timesteps | 20217856 |
+---------------------------------
+Saved generation 1 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_1
+Time elapsed: 3.09 mins
+
+--- Generation 2 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 157      |
+|    ep_rew_mean     | 0.74     |
+| time/              |          |
+|    fps             | 1901     |
+|    iterations      | 1        |
+|    time_elapsed    | 34       |
+|    total_timesteps | 20283392 |
+---------------------------------
+Saved generation 2 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_2
+Time elapsed: 6.04 mins
+
+--- Generation 3 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 156      |
+|    ep_rew_mean     | 1        |
+| time/              |          |
+|    fps             | 2105     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 20348928 |
+---------------------------------
+Saved generation 3 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_3
+Time elapsed: 8.93 mins
+
+--- Generation 4 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 156      |
+|    ep_rew_mean     | 0.77     |
+| time/              |          |
+|    fps             | 2113     |
+|    iterations      | 1        |
+|    time_elapsed    | 31       |
+|    total_timesteps | 20414464 |
+---------------------------------
+Saved generation 4 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_4
+Time elapsed: 11.60 mins
+
+--- Generation 5 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 156      |
+|    ep_rew_mean     | 0.825    |
+| time/              |          |
+|    fps             | 2266     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 20480000 |
+---------------------------------
+Saved generation 5 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 14.44 mins
+
+--- Generation 6 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 158      |
+|    ep_rew_mean     | 0.9      |
+| time/              |          |
+|    fps             | 2301     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 20545536 |
+---------------------------------
+Saved generation 6 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_6
+Time elapsed: 17.31 mins
+
+--- Generation 7 ---
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 154      |
+|    ep_rew_mean     | 1        |
+| time/              |          |
+|    fps             | 2302     |
+|    iterations      | 1        |
+|    time_elapsed    | 28       |
+|    total_timesteps | 20611072 |
+---------------------------------
