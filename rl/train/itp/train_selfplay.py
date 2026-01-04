@@ -44,7 +44,7 @@ def robust_apply_masking(self, masks: torch.Tensor):
 
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
-from rl.env import KuhhandelEnv
+from rl.env import KuhhandelEnv, RewardMinimalAggressiveConfig
 from rl.agents.model_agent import ModelAgent
 from rl.agents.random_agent import RandomAgent
 from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
@@ -128,7 +128,7 @@ def make_env(rank: int, opponent_generator_func):
     def _init():
         torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
         
-        env = KuhhandelEnv(num_players=3)
+        env = KuhhandelEnv(num_players=3, reward_config=RewardMinimalAggressiveConfig)
         
         env.opponent_generator = opponent_generator_func
         
