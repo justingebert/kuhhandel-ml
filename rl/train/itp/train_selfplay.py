@@ -133,8 +133,8 @@ def make_env(rank: int, opponent_generator_func):
         
         env.opponent_generator = opponent_generator_func
         
-        log_file = os.path.join(LOG_DIR, str(rank))
-        env = Monitor(env, log_file)
+        # log_file = os.path.join(LOG_DIR, str(rank))
+        # env = Monitor(env, log_file)
         
         env = ActionMasker(env, mask_valid_action)
         return env
