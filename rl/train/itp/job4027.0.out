@@ -1,0 +1,90 @@
+Starting Self-Play Training with 32 parallel environments...
+Using cpu device
+
+--- Generation 1 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 194      |
+|    ep_rew_mean     | -62.7    |
+| time/              |          |
+|    fps             | 7459     |
+|    iterations      | 1        |
+|    time_elapsed    | 8        |
+|    total_timesteps | 65536    |
+---------------------------------
+Saved generation 1 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_1
+Time elapsed: 0.57 mins
+
+--- Generation 2 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 175      |
+|    ep_rew_mean     | -101     |
+| time/              |          |
+|    fps             | 1718     |
+|    iterations      | 1        |
+|    time_elapsed    | 38       |
+|    total_timesteps | 131072   |
+---------------------------------
+Saved generation 2 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_2
+Time elapsed: 1.63 mins
+
+--- Generation 3 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 178      |
+|    ep_rew_mean     | -102     |
+| time/              |          |
+|    fps             | 2443     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 196608   |
+---------------------------------
+Saved generation 3 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_3
+Time elapsed: 2.50 mins
+
+--- Generation 4 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 182      |
+|    ep_rew_mean     | -92.1    |
+| time/              |          |
+|    fps             | 2467     |
+|    iterations      | 1        |
+|    time_elapsed    | 26       |
+|    total_timesteps | 262144   |
+---------------------------------
+Saved generation 4 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_4
+Time elapsed: 3.36 mins
+
+--- Generation 5 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 183      |
+|    ep_rew_mean     | -86.5    |
+| time/              |          |
+|    fps             | 2574     |
+|    iterations      | 1        |
+|    time_elapsed    | 25       |
+|    total_timesteps | 327680   |
+---------------------------------
+Saved generation 5 to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/models/selfplay_pool/gen_5
+Time elapsed: 4.21 mins
+
+--- Generation 6 ---
+Logging to /home/jnn.aurich/kuhhandel-ml/rl/train/itp/tensorboard_logs/MaskablePPO_0
+---------------------------------
+| rollout/           |          |
+|    ep_len_mean     | 187      |
+|    ep_rew_mean     | -86.3    |
+| time/              |          |
+|    fps             | 2641     |
+|    iterations      | 1        |
+|    time_elapsed    | 24       |
+|    total_timesteps | 393216   |
+---------------------------------
