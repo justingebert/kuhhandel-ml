@@ -582,26 +582,34 @@ class KuhhandelGUI(QMainWindow):
         """Update turn status label based on current phase."""
         status_text = ""
         
-        if game.phase == GamePhase.AUCTION_BIDDING and game.current_animal:
+        if game.phase == GamePhase.PLAYER_TURN_CHOICE:
+            status_text = "🎯 Your Turn - Choose an action"
+        
+        elif (game.phase == GamePhase.AUCTION_BIDDING or game.phase == GamePhase.AUCTIONEER_DECISION) and game.current_animal:
             animal = game.current_animal.animal_type.display_name
             emoji = ANIMAL_EMOJIS.get(animal, "")
-            high_bidder = game.players[game.auction_high_bidder].name if game.auction_high_bidder is not None else "None"
-            status_text = f"🔨 Current Bid: {game.auction_high_bid} | 🏆 By: {high_bidder} | 🐾 Animal: {emoji} {animal}"
+            high_bidder = game.players[game.auction_high_bidder].name if game.auction_high_bidder is not None else "No bid yet"
+            status_text = f"🔨 Tier: {emoji} {animal} | 💰 Höchstes Gebot: {game.auction_high_bid} | 🏆 Von: {high_bidder}"
         
         elif game.phase == GamePhase.COW_TRADE_OFFER:
             if game.trade_target is not None:
                 animal = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
                 emoji = ANIMAL_EMOJIS.get(animal, "")
-                status_text = f"🤝 Trading for {emoji} {animal}"
+                status_text = f"🤝 Tier: {emoji} {animal}"
         
         elif game.phase == GamePhase.COW_TRADE_RESPONSE:
             if game.trade_initiator is not None:
                 animal = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
                 emoji = ANIMAL_EMOJIS.get(animal, "")
                 card_count = game.trade_offer_card_count
-                status_text = f"🛡️ Defending | 💳 Cards Offered: {card_count} | 🐾 Animal: {emoji} {animal}"
+                status_text = f"🛡️ Tier: {emoji} {animal} | 💳 Angebotene Karten: {card_count}"
         
-        self.turn_status_label.setText(status_text)
+        # Only update if we have text to show
+        if status_text:
+            self.turn_status_label.setText(status_text)
+        else:
+            # Clear label if no status text
+            self.turn_status_label.setText("")
 
     def _clear_action_buttons(self):
         """Clear all action buttons."""
