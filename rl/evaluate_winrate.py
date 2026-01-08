@@ -10,9 +10,9 @@ from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from sb3_contrib.common.maskable import distributions as maskable_dist
 
+from rl.agents.random_agent import RandomAgent
 from rl.env import KuhhandelEnv
 from rl.agents.model_agent import ModelAgent
-from tests.demo_game import RandomAgent
 
 from rl.train.train_selfplay import robust_apply_masking
 

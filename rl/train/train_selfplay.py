@@ -10,13 +10,48 @@ import time
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable import distributions as maskable_dist
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
-from rl.env import RewardMinimalAggressiveConfig
+
+from rl.env import KuhhandelEnv
+from rl.rewardconfigs.reward_configs import RewardMinimalAggressiveConfig, RewardConfig, WinOnlyConfig
+
+from rl.agents.model_agent import ModelAgent
+from rl.agents.random_agent import RandomAgent
+from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
+
+# ==========================================
+# CONFIGURATION
+# ==========================================
+
+# ITP Server Configuration (Uncomment to use)
+# N_GENERATIONS = 150
+# STEPS_PER_GEN = 60000
+# MAX_ENVS = 32
+# PROB_RANDOM = 0.05
+# REWARD_CONFIG_CLASS = "Default" # Options: "Default", "RewardMinimalAggressiveConfig", "WinOnlyConfig"
+# POOL_SAVE_MODULO = 30 # Save to folders gen_{gen % 30}
+# CREATE_PROGRESS_FILES = True
+
+# Local / Standard Configuration
+N_GENERATIONS = 15
+STEPS_PER_GEN = 30000
+MAX_ENVS = 16
+PROB_RANDOM = 0.1
+REWARD_CONFIG_CLASS = "RewardMinimalAggressiveConfig" # Options: "Default", "RewardMinimalAggressiveConfig", "WinOnlyConfig"
+POOL_SAVE_MODULO = 0 # 0 means save to unique folder for every gen
+CREATE_PROGRESS_FILES = False
+
+# Common Config
+PROB_SCHWABE = 0.8
+DEVICE = "cpu"
+
+# ==========================================
+# END CONFIGURATION
+# ==========================================
+
 
 # Fix for Simplex error due to floating point precision issues
-
 def robust_apply_masking(self, masks: torch.Tensor):
     # Access logits directly
     if hasattr(self, 'logits'):
@@ -24,7 +59,8 @@ def robust_apply_masking(self, masks: torch.Tensor):
     elif hasattr(self, 'probs'):
          logits = torch.log(self.probs + 1e-8)
     else:
-        raise RuntimeError("Categorical distribution has no logits or probs attribute.")
+        # Fallback 
+        logits = torch.tensor([])
 
     HUGE_NEG = -1e8
     if masks is not None and logits.numel() > 0:
@@ -43,41 +79,12 @@ def robust_apply_masking(self, masks: torch.Tensor):
 
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
-from rl.env import KuhhandelEnv
-from rl.agents.model_agent import ModelAgent
-from rl.agents.random_agent import RandomAgent
-from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
-
 
 def mask_valid_action(env: gym.Env) -> np.ndarray:
     return env.unwrapped.get_action_mask()
 
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-MODEL_DIR = SCRIPT_DIR / "models"
-
-LOG_DIR = "logs"
-TB_LOG_DIR = f"{SCRIPT_DIR}/tensorboard_logs"
-SELFPLAY_DIR = f"{MODEL_DIR}/selfplay_pool"
-LATEST_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_latest"
-FINAL_MODEL_PATH = f"{MODEL_DIR}/kuhhandel_ppo_final"
-
-N_GENERATIONS = 15
-STEPS_PER_GEN = 30000  
-N_ENVS = min(multiprocessing.cpu_count(), 16) #use available cores up to a maximum of 16
-
-# Opponent Distribution
-PROB_RANDOM = 0.1
-PROB_SCHWABE = 0.8 #(Incase of Random Agent)
-
+# Dictionary to cache loaded models
 MODEL_CACHE = {}
-
-DEVICE = "cpu" # "cuda"
-
-os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(MODEL_DIR, exist_ok=True)
-os.makedirs(SELFPLAY_DIR, exist_ok=True)
-
 
 def get_cached_model(model_path):
     """
@@ -100,13 +107,26 @@ def get_cached_model(model_path):
     return MODEL_CACHE[name]
 
 
-def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
+def create_opponents(env_ref: KuhhandelEnv, n_opponents: int) -> list:
     opponents = []
-    pool_files = glob.glob(f"{SELFPLAY_DIR}/*.zip")
+    
+    # Needs to be resolved here to pick up latest global var if changed? 
+    # Or assume global SELFPLAY_DIR is set correctly before this runs in worker.
+    # We will pass selfplay_dir via partial if needed, but globals usually work in fork/spawn if defined.
+    # Safest is to calculate path again or use global. 
+    # Let's rely on the global variable defined in main/shared scope logic, but since this runs in worker, 
+    # we need to ensure paths are correct.
+    
+    # We re-calculate SELFPLAY_DIR here to be safe across processes
+    script_dir = Path(__file__).resolve().parent
+    model_dir = script_dir / "models"
+    selfplay_dir = model_dir / "selfplay_pool"
+    
+    pool_files = glob.glob(f"{selfplay_dir}/*.zip")
     
     for i in range(n_opponents):
         r = random.random()
-        if not pool_files or r < PROB_RANDOM: #experiment with this
+        if not pool_files or r < PROB_RANDOM: 
             if r < PROB_SCHWABE:
                 opponents.append(RandomSchwabenAgent(f"Random_{i}"))
             else:
@@ -124,16 +144,13 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int,) -> list:
     
     return opponents
 
-def make_env(rank: int, opponent_generator_func):
+def make_env(rank: int, reward_config):
     def _init():
         torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
         
-        env = KuhhandelEnv(num_players=3, reward_config=RewardMinimalAggressiveConfig())
+        env = KuhhandelEnv(num_players=3, reward_config=reward_config)
         
-        env.opponent_generator = opponent_generator_func
-        
-        # log_file = os.path.join(LOG_DIR, str(rank))
-        # env = Monitor(env, log_file)
+        env.opponent_generator = create_opponents
         
         env = ActionMasker(env, mask_valid_action)
         return env
@@ -142,26 +159,54 @@ def make_env(rank: int, opponent_generator_func):
 
 
 def main():
-    print(f"Starting Self-Play Training with {N_ENVS} parallel environments...")
+    print(f"Starting Self-Play Training with {MAX_ENVS} parallel environments...")
+    
+    script_dir = Path(__file__).resolve().parent
+    model_dir = script_dir / "models"
+    log_dir = script_dir / "logs" # Not strictly used but kept
+    tb_log_dir = script_dir / "tensorboard_logs"
+    selfplay_dir = model_dir / "selfplay_pool"
+    
+    latest_model_path = str(model_dir / "kuhhandel_ppo_latest")
+    final_model_path = str(model_dir / "kuhhandel_ppo_final")
 
-    # create n envs for parallel training
-    env_fns = [make_env(i, create_opponents) for i in range(N_ENVS)]
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(model_dir, exist_ok=True)
+    os.makedirs(selfplay_dir, exist_ok=True)
+    
+    # Resolve Reward Config
+    if REWARD_CONFIG_CLASS == "RewardMinimalAggressiveConfig":
+        reward_config = RewardMinimalAggressiveConfig()
+    elif REWARD_CONFIG_CLASS == "WinOnlyConfig":
+        reward_config = WinOnlyConfig()
+    else:
+        reward_config = RewardConfig()
+
+    print(f"Configuration:")
+    print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}")
+    print(f"  Random Prob: {PROB_RANDOM}, Reward: {REWARD_CONFIG_CLASS}")
+
+    # Create Envs
+    n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
+    
+    env_fns = [make_env(i, reward_config) for i in range(n_envs)]
     vec_env = SubprocVecEnv(env_fns) 
 
-    # [256, 256] neurons to handle sparse/large observation space
     policy_kwargs = dict(net_arch=[256, 256])
     
     # load existing or create new one
-    if os.path.exists(LATEST_MODEL_PATH + ".zip"):
-        model = MaskablePPO.load(LATEST_MODEL_PATH, env=vec_env, device=DEVICE, tensorboard_log=TB_LOG_DIR)
+    if os.path.exists(latest_model_path + ".zip"):
+        print(f"Loading existing model from {latest_model_path}")
+        model = MaskablePPO.load(latest_model_path, env=vec_env, device=DEVICE, tensorboard_log=str(tb_log_dir))
     else:
+        print("Creating new model")
         model = MaskablePPO(
             "MultiInputPolicy", 
             vec_env,
             verbose=1, 
             device=DEVICE,
             policy_kwargs=policy_kwargs,
-            tensorboard_log=TB_LOG_DIR
+            tensorboard_log=str(tb_log_dir)
         )
     
     start_time = time.time()
@@ -169,21 +214,36 @@ def main():
     for gen in range(1, N_GENERATIONS + 1):
         print(f"\n--- Generation {gen} ---")
         
-        # STEPS_PER_GEN is total steps. With N_ENVS, each env does STEPS / N.
         model.learn(total_timesteps=STEPS_PER_GEN, reset_num_timesteps=False)
         
-        pool_path = f"{SELFPLAY_DIR}/gen_{gen}"
+        # Save to pool
+        if POOL_SAVE_MODULO > 0:
+            pool_path = f"{selfplay_dir}/gen_{gen % POOL_SAVE_MODULO}"
+        else:
+            pool_path = f"{selfplay_dir}/gen_{gen}"
+            
         model.save(pool_path)
         print(f"Saved generation {gen} to {pool_path}")
         
-        model.save(LATEST_MODEL_PATH)
+        model.save(latest_model_path)
+        
+        # Progress indication files (ITP specific)
+        if CREATE_PROGRESS_FILES:
+            txt_file = script_dir / f"gen{gen}.txt"
+            with open(txt_file, "w") as f:
+                f.write(f"Generation {gen} completed at {time.ctime()}")
+            
+            if gen > 1:
+                prev_txt = script_dir / f"gen{gen-1}.txt"
+                if os.path.exists(prev_txt):
+                    os.remove(prev_txt)
 
         # Print interim timing
         elapsed_so_far = time.time() - start_time
         print(f"Time elapsed: {elapsed_so_far/60:.2f} mins")
         
     total_time = time.time() - start_time
-    print(f"Training loop finished in {total_time/60:.2f} minutes. Model saved to {FINAL_MODEL_PATH}")
+    print(f"Training loop finished in {total_time/60:.2f} minutes. Model saved to {final_model_path}")
     vec_env.close()
 
 if __name__ == "__main__":
