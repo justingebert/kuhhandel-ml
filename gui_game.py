@@ -296,6 +296,13 @@ class KuhhandelGUI(QMainWindow):
         self.actions_group = QGroupBox("🎯 Your Actions")
         actions_layout = QVBoxLayout(self.actions_group)
         
+        # Turn Status Label
+        self.turn_status_label = QLabel("")
+        self.turn_status_label.setFont(QFont("Helvetica", 11, QFont.Weight.Bold))
+        self.turn_status_label.setWordWrap(True)
+        self.turn_status_label.setStyleSheet("color: #FF6B6B; padding: 8px; background-color: #F5F5F5; border-radius: 4px;")
+        actions_layout.addWidget(self.turn_status_label)
+        
         self.action_desc_label = QLabel("Choose your action:")
         self.action_desc_label.setFont(QFont("Helvetica", 12, QFont.Weight.Bold))
         self.action_desc_label.setWordWrap(True)
@@ -344,7 +351,7 @@ class KuhhandelGUI(QMainWindow):
         model_layout.setContentsMargins(0, 0, 0, 0)
         
         model_label = QLabel("AI Model Path:")
-        self.model_path_input = QLineEdit("rl/train/08_lang/models/selfplay_pool/gen_70.zip")
+        self.model_path_input = QLineEdit("rl\\train\\models\\kuhhandel_ppo_latest.zip")
         self.model_path_input.setMinimumWidth(400)
         
         model_layout.addWidget(model_label)
@@ -533,6 +540,9 @@ class KuhhandelGUI(QMainWindow):
         # Update context info
         context_text = self._get_context_info(game)
         self.context_info_label.setText(context_text)
+        
+        # Update turn status
+        self._update_turn_status(game)
 
     def _format_animals(self, animal_counts: Dict[AnimalType, int]) -> str:
         """Format animal counts as a string with emojis."""
@@ -567,6 +577,31 @@ class KuhhandelGUI(QMainWindow):
                 return f"🛡️ Defense: {initiator} wants your {emoji} {animal}!\nThey offer {game.trade_offer_card_count} cards."
         
         return ""
+
+    def _update_turn_status(self, game: Game):
+        """Update turn status label based on current phase."""
+        status_text = ""
+        
+        if game.phase == GamePhase.AUCTION_BIDDING and game.current_animal:
+            animal = game.current_animal.animal_type.display_name
+            emoji = ANIMAL_EMOJIS.get(animal, "")
+            high_bidder = game.players[game.auction_high_bidder].name if game.auction_high_bidder is not None else "None"
+            status_text = f"🔨 Current Bid: {game.auction_high_bid} | 🏆 By: {high_bidder} | 🐾 Animal: {emoji} {animal}"
+        
+        elif game.phase == GamePhase.COW_TRADE_OFFER:
+            if game.trade_target is not None:
+                animal = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+                emoji = ANIMAL_EMOJIS.get(animal, "")
+                status_text = f"🤝 Trading for {emoji} {animal}"
+        
+        elif game.phase == GamePhase.COW_TRADE_RESPONSE:
+            if game.trade_initiator is not None:
+                animal = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+                emoji = ANIMAL_EMOJIS.get(animal, "")
+                card_count = game.trade_offer_card_count
+                status_text = f"🛡️ Defending | 💳 Cards Offered: {card_count} | 🐾 Animal: {emoji} {animal}"
+        
+        self.turn_status_label.setText(status_text)
 
     def _clear_action_buttons(self):
         """Clear all action buttons."""
