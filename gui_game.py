@@ -4,28 +4,26 @@ Uses PyQt6 for the GUI framework.
 """
 import os
 import sys
-from typing import List, Dict, Any, Optional, Callable
 from queue import Queue
-import threading
+from typing import List, Dict, Optional
 
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
+from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QScrollArea, QTextEdit, QLineEdit,
     QSlider, QGroupBox, QGridLayout, QSplitter, QMessageBox, QSpinBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
-from PyQt6.QtGui import QFont, QTextCursor
-
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable import distributions as maskable_dist
 
+from gameengine.Animal import AnimalType
+from gameengine.actions import GameAction, ActionType
 from gameengine.agent import Agent
 from gameengine.game import Game, GamePhase
-from gameengine.actions import GameAction, ActionType
-from gameengine.Animal import AnimalType
-from rl.env import KuhhandelEnv
 from rl.agents.model_agent import ModelAgent
 from rl.agents.random_agent import RandomAgent
+from rl.env import KuhhandelEnv
 from rl.train.train_selfplay import robust_apply_masking
 
 # Patch for maskable distribution

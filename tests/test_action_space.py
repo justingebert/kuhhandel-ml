@@ -1,11 +1,10 @@
 """
 Tests for shared money action space reduction
 """
-import pytest
 import numpy as np
+
+from gameengine import GamePhase
 from rl.env import KuhhandelEnv, N_ACTIONS, ACTION_MONEY_SHARED_BASE, ACTION_MONEY_SHARED_END
-from gameengine import Game, GamePhase
-from gameengine.actions import Actions
 
 
 class TestActionSpaceSize:

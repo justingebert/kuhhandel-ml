@@ -1,7 +1,7 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # Define colors
 COLOR_ORANGE = '#E85C02'  # (232, 92, 2)
