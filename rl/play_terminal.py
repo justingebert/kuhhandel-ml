@@ -9,13 +9,13 @@ from rl.agents.model_agent import ModelAgent
 from rl.agents.random_agent import RandomAgent
 
 from sb3_contrib.common.maskable import distributions as maskable_dist
-from rl.train_selfplay import robust_apply_masking
+from rl.train.train_selfplay import robust_apply_masking
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 def play_terminal():
     parser = argparse.ArgumentParser(description="Play Kuhhandel against AI in the terminal.")
     parser.add_argument("--players", type=int, default=3, help="Number of players (3-5)")
-    parser.add_argument("--model_path", type=str, default="rl/models/kuhhandel_ppo_latest.zip", help="Path to opponent model")
+    parser.add_argument("--model_path", type=str, default="rl/train/models/kuhhandel_ppo_latest.zip", help="Path to opponent model")
     args = parser.parse_args()
 
     num_players = args.players

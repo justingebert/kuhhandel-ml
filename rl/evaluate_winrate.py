@@ -10,17 +10,17 @@ from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from sb3_contrib.common.maskable import distributions as maskable_dist
 
+from rl.agents.random_agent import RandomAgent
 from rl.env import KuhhandelEnv
 from rl.agents.model_agent import ModelAgent
-from tests.demo_game import RandomAgent
 
-from rl.train_selfplay import robust_apply_masking
+from rl.train.train_selfplay import robust_apply_masking
 
 original_apply_masking = maskable_dist.MaskableCategorical.apply_masking #Simplex error fix
 maskable_dist.MaskableCategorical.apply_masking = robust_apply_masking
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_MODEL_PATH = SCRIPT_DIR / "models" / "kuhhandel_ppo_latest"
+DEFAULT_MODEL_PATH = SCRIPT_DIR / "train" /"models" / "kuhhandel_ppo_latest"
 
 # Global model cache per subprocess to avoid loading the same model multiple times
 _MODEL_CACHE = {}

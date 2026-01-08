@@ -11,17 +11,23 @@ from gameengine.controller import GameController
 from gameengine.game import Game, GamePhase
 from rl.agents.random_agent import RandomAgent
 from rl.agents.rl_agent import RLAgent
+from rl.rewardconfigs.reward_configs import RewardConfig
 
 
 class KuhhandelEnv(gym.Env):
 
     GAME_PHASE_MAP = {phase: i for i, phase in enumerate(GamePhase)}
 
-    def __init__(self, num_players: int = 3, opponent_generator=None):
+
+    def __init__(self, num_players: int = 3, opponent_generator=None, reward_config: RewardConfig = RewardConfig()):
         super().__init__()
 
         self.num_players = num_players
         self.opponent_generator = opponent_generator
+        
+        # Initialize reward config based on category
+        self.reward_config = reward_config
+        
         self.action_space = Discrete(N_ACTIONS)
 
         self.observation_space = Dict({
@@ -182,17 +188,18 @@ class KuhhandelEnv(gym.Env):
 
     def _compute_reward(self, terminated: bool) -> float:
         reward = 0.0
+        cfg = self.reward_config
 
-        #Penalty for vulnerability
+        # Penalty for vulnerability
         if self.game.players[self.rl_agent_id].get_total_money() == 0:
-            reward -= 0.2
+            reward += cfg.no_money_penalty
 
         # Money Dominance Reward: Small bonus for holding >50% of circulating money
         total_money_in_play = sum(p.get_total_money() for p in self.game.players)
-        if total_money_in_play > 0:# and self.game.donkeys_revealed > 0:
+        if total_money_in_play > 0:
             rl_money = self.game.players[self.rl_agent_id].get_total_money()
             if rl_money > 0.5 * total_money_in_play:
-                reward += 0.05
+                reward += cfg.money_dominance_bonus
 
         # Reward for winning auctions (flat bonus)
         current_history_len = len(self.game.action_history)
@@ -204,17 +211,17 @@ class KuhhandelEnv(gym.Env):
             # Check for auction wins
             if a_type == "high_bidder_wins":
                 if details["bidder"] == self.rl_agent_id:
-                    reward += 0.1
+                    reward += cfg.high_bidder_wins_reward
             elif a_type == "auctioneer_gets_free":
                 if details["auctioneer"] == self.rl_agent_id:
-                    reward += 0.2
+                    reward += cfg.auctioneer_gets_free_reward
                 else:
-                    reward -= 0.2
-            elif a_type == "auctioneer_buys": #wörs
+                    reward += cfg.auctioneer_gets_free_penalty
+            elif a_type == "auctioneer_buys":
                 if details["to"] == self.rl_agent_id:
-                    reward += 0.1
-                elif details["auctioneer"] == self.rl_agent_id: #kleine strafe für selbstkauf
-                    reward -= 0.05
+                    reward += cfg.auctioneer_buys_reward
+                elif details["auctioneer"] == self.rl_agent_id:
+                    reward += cfg.auctioneer_self_buy_penalty
             
             # Penalty for excessive overbidding (>10 above previous high bid)
             elif a_type == "bid":
@@ -226,8 +233,8 @@ class KuhhandelEnv(gym.Env):
                         prev_action = self.game.action_history[j]
                         if prev_action["action"] == "bid":
                             previous_high_bid = prev_action["details"]["amount"]
-                            if prev_action["details"]["player"] == self.rl_agent_id: #selbstüberbieten stoppen
-                                reward -= 0.1
+                            if prev_action["details"]["player"] == self.rl_agent_id:
+                                reward += cfg.self_overbid_penalty
                             break
                         elif prev_action["action"] == "start_auction":
                             # No previous bids in this auction
@@ -237,8 +244,8 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= (overbid_amount - 10) / 100
-                    
+                        reward -= cfg.overbid100_penelty * (overbid_amount - 10) / 100
+        
         self.last_reward_history_idx = current_history_len
 
         # Quartet Bonus: Reward building quartets while the deck is still active
@@ -247,7 +254,7 @@ class KuhhandelEnv(gym.Env):
         quartet_diff = current_quartets - self.last_quartet_count
 
         if len(self.game.animal_deck) > 0 and quartet_diff != 0:
-            reward += quartet_diff * 0.5
+            reward += quartet_diff * cfg.early_quartet_bonus
         
         self.last_quartet_count = current_quartets
 
@@ -258,18 +265,18 @@ class KuhhandelEnv(gym.Env):
             net_payment = result.get("net_payment")
 
             if result["winner_player_id"] == self.rl_agent_id:
-                base_reward = 0.1 * animals_transferred
+                base_reward = cfg.trade_win_base_reward * animals_transferred
                 # If paid 0, get full bonus; if paid 500+, get no bonus - normalized
-                efficiency_bonus = 0.1 * max(0, (500 - net_payment) / 500)
+                efficiency_bonus = cfg.trade_win_efficiency_bonus * max(0, (500 - net_payment) / 500)
                 reward += base_reward + efficiency_bonus
 
             elif result["loser_player_id"] == self.rl_agent_id:
-                base_penalty = -0.1 * animals_transferred
+                base_penalty = cfg.trade_loss_base_penalty * animals_transferred
                 # If received 500+, can offset the penalty entirely
-                money_compensation = 0.15 * min(1.0, net_payment / 500)
+                money_compensation = cfg.trade_loss_money_compensation * min(1.0, net_payment / 500)
                 reward += base_penalty + money_compensation
-                if len(self.game.animal_deck) > 0: #additional peneltry for bad trades while auctioning was possible
-                    reward -= 0.1
+                if len(self.game.animal_deck) > 0:
+                    reward += cfg.trade_loss_during_auction_penalty
 
         if not terminated:
             return reward
@@ -277,7 +284,7 @@ class KuhhandelEnv(gym.Env):
         # End scores since the game is terminated
         scores = self.game.get_scores()
         if scores[self.rl_agent_id] == max(scores.values()):
-            return reward + 7.5
+            return reward + cfg.win_reward
 
         return reward
 
@@ -399,6 +406,9 @@ class KuhhandelEnv(gym.Env):
         """
         Return a binary mask of valid actions for specific player.
         1 = action is valid, 0 = action is invalid.
+        
+        Money actions use shared space (ACTION_MONEY_SHARED_BASE to END) and
+        are masked based on current game phase.
         """
         from gameengine.actions import ActionType
 
@@ -409,7 +419,7 @@ class KuhhandelEnv(gym.Env):
 
         # Get player's total money for constraining bids/offers
         player_money = self.game.players[player_id].get_total_money()
-        max_bid_level = player_money // MONEY_STEP
+        max_money_level = player_money // MONEY_STEP
 
         # Get current highest bid for auction constraints
         current_high_bid = self.game.auction_high_bid or 0
@@ -422,21 +432,25 @@ class KuhhandelEnv(gym.Env):
             elif action.type == ActionType.COW_TRADE_CHOOSE_OPPONENT:
                 # Map opponent ID to action index
                 target_id = action.target_id
-                action_idx = ACTION_COW_CHOOSE_OPP_BASE + target_id
+                # relative_id: 1 for next player, 2 for next-next player, etc.
+                relative_id = (target_id - player_id) % N_PLAYERS
+                # Valid relative_id is 1..(N_PLAYERS-1). Map 1->0, 2->1, etc.
+                action_offset = relative_id - 1
+                action_idx = ACTION_COW_CHOOSE_OPP_BASE + action_offset
+                
                 if ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
                     mask[action_idx] = 1
 
             elif action.type == ActionType.AUCTION_PASS:
-                # Pass is always valid during bidding
-                mask[ACTION_AUCTION_BID_BASE] = 1
+                # Pass is represented by money level 0 in shared space
+                mask[ACTION_MONEY_SHARED_BASE] = 1
 
             elif action.type == ActionType.AUCTION_BID:
-                # Only enable bids that are:
-                # 1. Higher than current highest bid
-                # 2. Within player's money
-                for bid_level in range(min_bid_level, max_bid_level + 1):
-                    action_idx = ACTION_AUCTION_BID_BASE + bid_level
-                    if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
+                # Enable valid bids in shared money space
+                # Bids must be: 1) higher than current high bid, 2) within player's money
+                for bid_level in range(min_bid_level, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + bid_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.PASS_AS_AUCTIONEER:
@@ -453,17 +467,17 @@ class KuhhandelEnv(gym.Env):
                     mask[action_idx] = 1
 
             elif action.type == ActionType.COW_TRADE_OFFER:
-                # Only enable offers within player's money (0 to max_bid_level)
-                for offer_level in range(0, max_bid_level + 1):
-                    action_idx = ACTION_COW_OFFER_BASE + offer_level
-                    if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
+                # Enable offers in shared money space (0 to player's max money)
+                for offer_level in range(0, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + offer_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.COUNTER_OFFER:
-                # Only enable counter offers within player's money (0 to max_bid_level)
-                for counter_level in range(0, max_bid_level + 1):
-                    action_idx = ACTION_COW_RESP_COUNTER_BASE + counter_level
-                    if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
+                # Enable counter-offers in shared money space (0 to player's max money)
+                for counter_level in range(0, max_money_level + 1):
+                    action_idx = ACTION_MONEY_SHARED_BASE + counter_level
+                    if action_idx <= ACTION_MONEY_SHARED_END:
                         mask[action_idx] = 1
 
             elif action.type == ActionType.COW_TRADE_ADD_BLUFF:
@@ -487,11 +501,16 @@ class KuhhandelEnv(gym.Env):
                 return Actions.start_auction()
             elif ACTION_COW_CHOOSE_OPP_BASE <= action_idx <= ACTION_COW_CHOOSE_OPP_END:
                 opponent_offset = action_idx - ACTION_COW_CHOOSE_OPP_BASE
-                return Actions.cow_trade_choose_opponent(opponent_offset)
+                # offset 0 -> relative 1 (next player)
+                # offset 1 -> relative 2 (next-next player)
+                relative_id = opponent_offset + 1
+                target_id = (game.current_player_idx + relative_id) % N_PLAYERS
+                return Actions.cow_trade_choose_opponent(target_id)
 
         elif game.phase == GamePhase.AUCTION_BIDDING:
-            if ACTION_AUCTION_BID_BASE <= action_idx <= AUCTION_BID_END:
-                bid_level = action_idx - ACTION_AUCTION_BID_BASE
+            # Shared money actions for bidding
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                bid_level = action_idx - ACTION_MONEY_SHARED_BASE
                 if bid_level == 0:
                     return Actions.pass_action()
                 else:
@@ -511,8 +530,9 @@ class KuhhandelEnv(gym.Env):
                 return Actions.cow_trade_choose_animal(animal_type)
 
         elif game.phase == GamePhase.COW_TRADE_OFFER:
-            if ACTION_COW_OFFER_BASE <= action_idx <= ACTION_COW_OFFER_END:
-                offer_level = action_idx - ACTION_COW_OFFER_BASE
+            # Shared money actions for offering
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                offer_level = action_idx - ACTION_MONEY_SHARED_BASE
                 offer_amount = offer_level * MONEY_STEP
                 return Actions.cow_trade_offer(offer_amount)
 
@@ -522,8 +542,9 @@ class KuhhandelEnv(gym.Env):
                 return Actions.cow_trade_add_bluff(amount)
 
         elif game.phase == GamePhase.COW_TRADE_RESPONSE:
-            if ACTION_COW_RESP_COUNTER_BASE <= action_idx <= COW_RESP_COUNTER_END:
-                counter_level = action_idx - ACTION_COW_RESP_COUNTER_BASE
+            # Shared money actions for counter-offering
+            if ACTION_MONEY_SHARED_BASE <= action_idx <= ACTION_MONEY_SHARED_END:
+                counter_level = action_idx - ACTION_MONEY_SHARED_BASE
                 counter_amount = counter_level * MONEY_STEP
                 return Actions.counter_offer(counter_amount)
 
@@ -549,33 +570,27 @@ ACTION_START_AUCTION = 0
 
 # Cow trade: choose opponent
 ACTION_COW_CHOOSE_OPP_BASE = ACTION_START_AUCTION + 1
-ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + N_PLAYERS - 1
-
-# Auction bidding (non-auctioneer):
-# action k: bid (k * MONEY_STEP), k = 0..N_MONEY_LEVELS-1
-# k=0 means "pass"
-ACTION_AUCTION_BID_BASE = ACTION_COW_CHOOSE_OPP_END + 1
-AUCTION_BID_END = ACTION_AUCTION_BID_BASE + N_MONEY_LEVELS - 1
+ACTION_COW_CHOOSE_OPP_END = ACTION_COW_CHOOSE_OPP_BASE + (N_PLAYERS - 1) - 1  # 2 (only 2 opponents, not including self)
 
 # Auctioneer decision
-ACTION_AUCTIONEER_ACCEPT = AUCTION_BID_END + 1
-ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1
+ACTION_AUCTIONEER_ACCEPT = ACTION_COW_CHOOSE_OPP_END + 1  # 3
+ACTION_AUCTIONEER_BUY = ACTION_AUCTIONEER_ACCEPT + 1  # 4
 
 # Cow trade: choose animal type (0..N_ANIMALS-1)
-ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1
-ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1
+ACTION_COW_CHOOSE_ANIMAL_BASE = ACTION_AUCTIONEER_BUY + 1  # 5
+ACTION_COW_CHOOSE_ANIMAL_END = ACTION_COW_CHOOSE_ANIMAL_BASE + N_ANIMALS - 1  # 14
 
-# Cow trade: A's offer amount
-# action k : offer k * MONEY_STEP, k=0..N_MONEY_LEVELS-1
-ACTION_COW_OFFER_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1
-ACTION_COW_OFFER_END = ACTION_COW_OFFER_BASE + N_MONEY_LEVELS - 1
+# SHARED Money actions (used for bidding, offers, counter-offers)
+# Interpretation depends on game phase:
+#   - AUCTION_BIDDING: bid (level 0 = pass, level 1+ = bid amount)
+#   - COW_TRADE_OFFER: offer amount
+#   - COW_TRADE_RESPONSE: counter-offer amount
+# action k: amount = k * MONEY_STEP, k = 0..N_MONEY_LEVELS-1
+ACTION_MONEY_SHARED_BASE = ACTION_COW_CHOOSE_ANIMAL_END + 1  # 15
+ACTION_MONEY_SHARED_END = ACTION_MONEY_SHARED_BASE + N_MONEY_LEVELS - 1  # 485
 
 # Cow trade: Add bluff (0-value cards)
-ACTION_COW_BLUFF_BASE = ACTION_COW_OFFER_END + 1
-ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 0..10 cards
+ACTION_COW_BLUFF_BASE = ACTION_MONEY_SHARED_END + 1  # 486
+ACTION_COW_BLUFF_END = ACTION_COW_BLUFF_BASE + 10  # 496 (0..10 cards)
 
-# Cow trade: B's response (counter-offer k * MONEY_STEP, k=0 means counter with 0)
-ACTION_COW_RESP_COUNTER_BASE = ACTION_COW_BLUFF_END + 1
-COW_RESP_COUNTER_END = ACTION_COW_RESP_COUNTER_BASE + N_MONEY_LEVELS - 1
-
-N_ACTIONS = COW_RESP_COUNTER_END + 1  # +1 because indices are 0-based
+N_ACTIONS = ACTION_COW_BLUFF_END + 1  # 497

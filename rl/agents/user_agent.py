@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from gameengine.agent import Agent
 from gameengine.game import Game, GamePhase
 from gameengine.actions import GameAction, ActionType
+import datetime
 
 class UserAgent(Agent):
     """An agent that allows a human user to play via the terminal."""
@@ -29,19 +30,30 @@ class UserAgent(Agent):
         if game.phase == GamePhase.AUCTION_BIDDING:
             return self._handle_auction_bidding(valid_actions, game)
 
+        # 3. Special Cow Trade Offer UI
+        if game.phase == GamePhase.COW_TRADE_OFFER:
+            return self._handle_cow_trade_offer(valid_actions, game)
+        
+        # 4. Special Cow Trade Response UI
+        if game.phase == GamePhase.COW_TRADE_RESPONSE:
+            return self._handle_cow_trade_response(valid_actions, game)
+
         # Standard Action Selection
         print("\nAvailable Actions:")
         for i, action in enumerate(valid_actions):
             print(f"[{i}] {self._format_action(action)}")
             
         while True:
-            choice = input(f"\nSelect action (0-{len(valid_actions)-1}) or 'animals'/'money': ").strip().lower()
+            choice = input(f"\nSelect action (0-{len(valid_actions)-1}) or 'animals'/'cardcount': ").strip().lower()
             
             if choice == "animals":
                 self._print_animals(game)
                 continue
             if choice == "money":
                 self._print_money(game)
+                continue
+            if choice == "cardcount":
+                self._print_cardcount(game)
                 continue
                 
             try:
@@ -118,6 +130,82 @@ class UserAgent(Agent):
             else:
                  print("Invalid selection. Please enter 0, 1, or 2.")
 
+    def _handle_cow_trade_offer(self, valid_actions: List[GameAction], game: Game) -> GameAction:
+        """Handle cow trade offer with convenience UI for amount input."""
+        # All valid actions should be COW_TRADE_OFFER type
+        offer_actions = [a for a in valid_actions if a.type == ActionType.COW_TRADE_OFFER]
+        offer_actions.sort(key=lambda x: x.amount)
+        
+        max_offer = offer_actions[-1].amount if offer_actions else 0
+        
+        target_name = game.players[game.trade_target].name if game.trade_target is not None else "Unknown"
+        animal_name = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+        
+        print(f"\nCow Trade: You are attacking {target_name} for {animal_name}")
+        print(f"Enter your offer amount (0 to {max_offer}, multiples of 10)")
+        
+        while True:
+            choice = input(f"\nEnter offer amount or 'animals'/'money': ").strip().lower()
+            
+            if choice == "animals":
+                self._print_animals(game)
+                continue
+            if choice == "money":
+                self._print_money(game)
+                continue
+            
+            try:
+                amount = int(choice)
+                
+                # Find matching action
+                for action in offer_actions:
+                    if action.amount == amount:
+                        return action
+                
+                print(f"Invalid amount. Must be between 0 and {max_offer} (multiples of 10)")
+                
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+    def _handle_cow_trade_response(self, valid_actions: List[GameAction], game: Game) -> GameAction:
+        """Handle cow trade counter-offer with convenience UI for amount input."""
+        # All valid actions should be COUNTER_OFFER type
+        counter_actions = [a for a in valid_actions if a.type == ActionType.COUNTER_OFFER]
+        counter_actions.sort(key=lambda x: x.amount)
+        
+        max_counter = counter_actions[-1].amount if counter_actions else 0
+        
+        initiator_name = game.players[game.trade_initiator].name if game.trade_initiator is not None else "Unknown"
+        animal_name = game.trade_animal_type.display_name if game.trade_animal_type else "Unknown"
+        card_count = game.trade_offer_card_count
+        
+        print(f"\nCow Trade Defense: {initiator_name} attacks your {animal_name}")
+        print(f"They offer {card_count} cards (hidden values)")
+        print(f"Enter your counter-offer amount (0 to {max_counter}, multiples of 10)")
+        
+        while True:
+            choice = input(f"\nEnter counter-offer amount or 'animals'/'money': ").strip().lower()
+            
+            if choice == "animals":
+                self._print_animals(game)
+                continue
+            if choice == "money":
+                self._print_money(game)
+                continue
+            
+            try:
+                amount = int(choice)
+                
+                # Find matching action
+                for action in counter_actions:
+                    if action.amount == amount:
+                        return action
+                
+                print(f"Invalid amount. Must be between 0 and {max_counter} (multiples of 10)")
+                
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
     def _print_event_log(self, game: Game):
         current_len = len(game.action_history)
         if current_len > self.last_history_len:
@@ -192,6 +280,20 @@ class UserAgent(Agent):
                     winner = p_name(target_id)
                     loser = p_name(initiator_id)
                 
+                # --- DIAGNOSTIC LOGGING START ---
+                try:
+                    with open("cow_trade_debug.log", "a") as f:
+                        ts = datetime.datetime.now().isoformat()
+                        offer_v = details.get("offer", "MISSING")
+                        counter_v = details.get("counter", "MISSING")
+                        calc_net = abs(details.get("counter", 0) - details.get("offer", 0))
+                        f.write(f"[{ts}] ResolveTrade: Winner={winner}, Offer={offer_v}, Counter={counter_v}, CalcNet={calc_net}\n")
+                        f.write(f"    Full Details: {details}\n")
+                        f.write("-" * 40 + "\n")
+                except Exception:
+                    pass # Silent fail to not disturb game
+                # --- DIAGNOSTIC LOGGING END ---
+
                 net_payment = abs(details.get("counter", 0)-details.get("offer", 0))
 
                 msg = f"Trade Result: {winner} wins! Takes {details['animals_transferred']} animals from {loser}."
@@ -253,7 +355,16 @@ class UserAgent(Agent):
             for animal_type, count in p.get_animal_counts().items():
                 if count > 0:
                     animals_str.append(f"{animal_type.display_name}: {count}")
-            print(f"{p.name} (Player {p.player_id}): {', '.join(animals_str) if animals_str else 'None'}")
+            print(f"{p.name} (Player {p.player_id}): {', '.join(animals_str) if animals_str else 'None'}")       
+        print(f"{'='*20}\n")
+
+    def _print_cardcount(self, game: Game):
+        print(f"\n{'='*20}")
+        print("OPPONENT CARD COUNT")
+        for p in game.players:
+            if p.player_id == self.player_id:
+                continue
+            print(f"{p.name} (Player {p.player_id}): {len(p.money)}")
         print(f"{'='*20}\n")
 
     def _print_money(self, game: Game):

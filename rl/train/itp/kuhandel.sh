@@ -1,5 +1,6 @@
 #! /bin/bash
-file='/home/jnn.aurich/kuhhandel-ml/rl/train/itp/train_selfplay.py' # adjust to run other script
+# Point to the unified script in the parent directory
+file='/home/jnn.aurich/kuhhandel-ml/rl/train/train_selfplay.py' 
 
 # echo "first  command line parameter: "$1
 # echo "second command line parameter: "$2
