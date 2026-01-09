@@ -12,6 +12,8 @@ from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
+import wandb
+from wandb.integration.sb3 import WandbCallback
 
 from rl.env import KuhhandelEnv
 from rl.rewardconfigs.reward_configs import RewardMinimalAggressiveConfig, RewardConfig, WinOnlyConfig
@@ -34,8 +36,8 @@ from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
 # CREATE_PROGRESS_FILES = True
 
 # Local / Standard Configuration
-N_GENERATIONS = 15
-STEPS_PER_GEN = 30000
+N_GENERATIONS = 5
+STEPS_PER_GEN = 1000
 MAX_ENVS = 16
 PROB_RANDOM = 0.1
 REWARD_CONFIG_CLASS = "RewardMinimalAggressiveConfig" # Options: "Default", "RewardMinimalAggressiveConfig", "WinOnlyConfig"
@@ -44,7 +46,10 @@ CREATE_PROGRESS_FILES = False
 
 # Common Config
 PROB_SCHWABE = 0.8
+
 DEVICE = "cpu"
+# !WICHTIG!!!!!
+RUN_NAME = "None" # Set this to a string to name the run, or leave None for auto-generated name
 
 # ==========================================
 # END CONFIGURATION
@@ -109,13 +114,6 @@ def get_cached_model(model_path):
 
 def create_opponents(env_ref: KuhhandelEnv, n_opponents: int) -> list:
     opponents = []
-    
-    # Needs to be resolved here to pick up latest global var if changed? 
-    # Or assume global SELFPLAY_DIR is set correctly before this runs in worker.
-    # We will pass selfplay_dir via partial if needed, but globals usually work in fork/spawn if defined.
-    # Safest is to calculate path again or use global. 
-    # Let's rely on the global variable defined in main/shared scope logic, but since this runs in worker, 
-    # we need to ensure paths are correct.
     
     # We re-calculate SELFPLAY_DIR here to be safe across processes
     script_dir = Path(__file__).resolve().parent
@@ -208,13 +206,37 @@ def main():
             policy_kwargs=policy_kwargs,
             tensorboard_log=str(tb_log_dir)
         )
+
+    # Initialize W&B
+    run = wandb.init(
+        project="kuhhandel",
+        name=RUN_NAME,
+        config={
+            "n_generations": N_GENERATIONS,
+            "steps_per_gen": STEPS_PER_GEN,
+            "max_envs": MAX_ENVS,
+            "prob_random": PROB_RANDOM,
+            "reward_config": REWARD_CONFIG_CLASS,
+            "prob_schwabe": PROB_SCHWABE,
+            "device": DEVICE
+        },
+        sync_tensorboard=True,
+    )
     
     start_time = time.time()
     
     for gen in range(1, N_GENERATIONS + 1):
         print(f"\n--- Generation {gen} ---")
         
-        model.learn(total_timesteps=STEPS_PER_GEN, reset_num_timesteps=False)
+        model.learn(
+            total_timesteps=STEPS_PER_GEN, 
+            reset_num_timesteps=False,
+            callback=WandbCallback(
+                gradient_save_freq=100,
+                model_save_path=f"{selfplay_dir}/wandb_models",
+                verbose=2,
+            )
+        )
         
         # Save to pool
         if POOL_SAVE_MODULO > 0:
@@ -244,6 +266,7 @@ def main():
         
     total_time = time.time() - start_time
     print(f"Training loop finished in {total_time/60:.2f} minutes. Model saved to {final_model_path}")
+    run.finish()
     vec_env.close()
 
 if __name__ == "__main__":
