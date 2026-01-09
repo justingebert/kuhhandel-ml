@@ -182,6 +182,5 @@ cython_debug/
 
 logs/
 
-models/
 
 tensorboard_logs/
