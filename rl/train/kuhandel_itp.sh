@@ -1,6 +1,6 @@
 #! /bin/bash
 # Point to the unified script in the parent directory
-file='/home/jnn.aurich/kuhhandel-m/rl/train/train_selfplay.py' 
+file='/home/jnn.aurich/kuhhandel-ml/rl/train/train_selfplay.py' 
 
 echo "--itp"$1
 # echo "second command line parameter: "$2
