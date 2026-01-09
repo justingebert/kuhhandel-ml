@@ -181,6 +181,11 @@ cython_debug/
 .mdfiles/
 
 logs/
-
+**/logs/
 
 tensorboard_logs/
+**/tensorboard_logs/
+
+wandb/
+**/wandb/
+
