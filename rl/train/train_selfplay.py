@@ -21,21 +21,17 @@ from rl.agents.model_agent import ModelAgent
 from rl.agents.random_agent import RandomAgent
 from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
-
-# ITP Server Configuration (Uncomment to use)
+# ITP Server Configuration arg --itp for use
 ITP_CONFIG = {
     "N_GENERATIONS": 150,
     "STEPS_PER_GEN": 60000,
     "MAX_ENVS": 32,
     "REWARD_CONFIG_CLASS": "Default",
-    "POOL_SAVE_MODULO": 30,
+    "POOL_SAVE_MODULO": 30, #Max models saved
     "CREATE_PROGRESS_FILES": True,
 }
 
-# Local / Standard Configuration
+# Standard Configuration
 LOCAL_CONFIG = {
     "N_GENERATIONS": 15,
     "STEPS_PER_GEN": 30000,
@@ -53,11 +49,6 @@ def get_config(use_itp=False):
 PROB_RANDOM = 0.05
 PROB_SCHWABE = 0.8
 DEVICE = "cpu"
-
-# ==========================================
-# END CONFIGURATION
-# ==========================================
-
 
 # Fix for Simplex error due to floating point precision issues
 def robust_apply_masking(self, masks: torch.Tensor):
@@ -118,13 +109,6 @@ def get_cached_model(model_path):
 def create_opponents(env_ref: KuhhandelEnv, n_opponents: int) -> list:
     opponents = []
     
-    # Needs to be resolved here to pick up latest global var if changed? 
-    # Or assume global SELFPLAY_DIR is set correctly before this runs in worker.
-    # We will pass selfplay_dir via partial if needed, but globals usually work in fork/spawn if defined.
-    # Safest is to calculate path again or use global. 
-    # Let's rely on the global variable defined in main/shared scope logic, but since this runs in worker, 
-    # we need to ensure paths are correct.
-    
     # We re-calculate SELFPLAY_DIR here to be safe across processes
     script_dir = Path(__file__).resolve().parent
     model_dir = script_dir / "models"
@@ -176,7 +160,6 @@ def main():
     N_GENERATIONS = config["N_GENERATIONS"]
     STEPS_PER_GEN = config["STEPS_PER_GEN"]
     MAX_ENVS = config["MAX_ENVS"]
-    PROB_RANDOM = config["PROB_RANDOM"]
     REWARD_CONFIG_CLASS = config["REWARD_CONFIG_CLASS"]
     POOL_SAVE_MODULO = config["POOL_SAVE_MODULO"]
     CREATE_PROGRESS_FILES = config["CREATE_PROGRESS_FILES"]
