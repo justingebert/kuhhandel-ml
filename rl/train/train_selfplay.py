@@ -41,9 +41,56 @@ LOCAL_CONFIG = {
     "CREATE_PROGRESS_FILES": False,
 }
 
+# Hyperparameter presets for training
+HYPERPARAMETERS = {
+    "default": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.2,  # epsilon
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+    "low_range": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.1,  # epsilon = 0.2 (standard)
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+    "high_range": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.3,  # epsilon = 0.1 (more conservative updates)
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+}
+
 # Select config based on argument (default: LOCAL_CONFIG)
 def get_config(use_itp=False):
     return ITP_CONFIG if use_itp else LOCAL_CONFIG
+
+def get_hyperparams(preset_name: str = "default") -> dict:
+    """Get hyperparameters by preset name."""
+    if preset_name not in HYPERPARAMETERS:
+        print(f"Warning: Unknown preset '{preset_name}', using 'default'")
+        return HYPERPARAMETERS["default"]
+    return HYPERPARAMETERS[preset_name]
 
 # Common Config
 PROB_RANDOM = 0.05
@@ -153,10 +200,14 @@ def make_env(rank: int, reward_config):
 def main():
     parser = argparse.ArgumentParser(description="Self-Play Training for Kuhhandel")
     parser.add_argument("--itp", action="store_true", help="Use ITP Server Configuration instead of local/standard configuration")
+    parser.add_argument("--hyperparams", type=str, default="default", 
+                        choices=list(HYPERPARAMETERS.keys()),
+                        help=f"Hyperparameter preset to use: {list(HYPERPARAMETERS.keys())}")
     args = parser.parse_args()
     
     # Load configuration
     config = get_config(use_itp=args.itp)
+    hyperparams = get_hyperparams(args.hyperparams)
     N_GENERATIONS = config["N_GENERATIONS"]
     STEPS_PER_GEN = config["STEPS_PER_GEN"]
     MAX_ENVS = config["MAX_ENVS"]
@@ -190,6 +241,7 @@ def main():
 
     print(f"Configuration:")
     print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}, Reward Config: {REWARD_CONFIG_CLASS}")
+    print(f"  Hyperparams: {args.hyperparams} (epsilon={hyperparams['clip_range']}, lr={hyperparams['learning_rate']})")
     
     # Create Envs
     n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
@@ -211,7 +263,17 @@ def main():
             verbose=1, 
             device=DEVICE,
             policy_kwargs=policy_kwargs,
-            tensorboard_log=str(tb_log_dir)
+            tensorboard_log=str(tb_log_dir),
+            learning_rate=hyperparams["learning_rate"],
+            clip_range=hyperparams["clip_range"],
+            # n_steps=hyperparams["n_steps"],
+            # batch_size=hyperparams["batch_size"],
+            # n_epochs=hyperparams["n_epochs"],
+            # gamma=hyperparams["gamma"],
+            # gae_lambda=hyperparams["gae_lambda"],
+            # ent_coef=hyperparams["ent_coef"],
+            # vf_coef=hyperparams["vf_coef"],
+            # max_grad_norm=hyperparams["max_grad_norm"],
         )
     
     start_time = time.time()
