@@ -102,10 +102,6 @@ DEVICE = "cpu"
 # !WICHTIG!!!!!
 RUN_NAME = "None" # Set this to a string to name the run, or leave None for auto-generated name
 
-# ==========================================
-# END CONFIGURATION
-# ==========================================
-
 
 # Fix for Simplex error due to floating point precision issues
 def robust_apply_masking(self, masks: torch.Tensor):
@@ -232,8 +228,10 @@ def main():
     REWARD_CONFIG_CLASS = config["REWARD_CONFIG_CLASS"]
     POOL_SAVE_MODULO = config["POOL_SAVE_MODULO"]
     CREATE_PROGRESS_FILES = config["CREATE_PROGRESS_FILES"]
+
+    n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
     
-    print(f"Starting Self-Play Training with {MAX_ENVS} parallel environments...")
+    print(f"Starting Self-Play Training with {n_envs} parallel environments...")
     print(f"Using {'ITP' if args.itp else 'Local/Standard'} Configuration")
     
     script_dir = Path(__file__).resolve().parent
@@ -262,9 +260,6 @@ def main():
     print(f"  Hyperparams: {args.hyperparams} (epsilon={hyperparams['clip_range']}, lr={hyperparams['learning_rate']})")
     print(f"  Model Dir: {model_dir}")
     print(f"  Log Dir: {log_dir}")
-    
-    # Create Envs
-    n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
     
     env_fns = [make_env(i, reward_config) for i in range(n_envs)]
     vec_env = SubprocVecEnv(env_fns) 
