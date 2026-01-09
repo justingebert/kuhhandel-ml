@@ -200,6 +200,8 @@ def make_env(rank: int, reward_config):
 def main():
     parser = argparse.ArgumentParser(description="Self-Play Training for Kuhhandel")
     parser.add_argument("--itp", action="store_true", help="Use ITP Server Configuration instead of local/standard configuration")
+    parser.add_argument("--suffix", type=str, default="", 
+                        help="Suffix to append to model and log directories (e.g., '_itp', '_v2')")
     parser.add_argument("--hyperparams", type=str, default="default", 
                         choices=list(HYPERPARAMETERS.keys()),
                         help=f"Hyperparameter preset to use: {list(HYPERPARAMETERS.keys())}")
@@ -208,6 +210,12 @@ def main():
     # Load configuration
     config = get_config(use_itp=args.itp)
     hyperparams = get_hyperparams(args.hyperparams)
+    
+    # If using --itp and no explicit suffix, add default suffix
+    suffix = args.suffix
+    if args.itp and not suffix:
+        suffix = "_itp"
+    
     N_GENERATIONS = config["N_GENERATIONS"]
     STEPS_PER_GEN = config["STEPS_PER_GEN"]
     MAX_ENVS = config["MAX_ENVS"]
@@ -219,9 +227,9 @@ def main():
     print(f"Using {'ITP' if args.itp else 'Local/Standard'} Configuration")
     
     script_dir = Path(__file__).resolve().parent
-    model_dir = script_dir / "models"
-    log_dir = script_dir / "logs" # Not strictly used but kept
-    tb_log_dir = script_dir / "tensorboard_logs"
+    model_dir = script_dir / f"models{suffix}"
+    log_dir = script_dir / f"logs{suffix}"
+    tb_log_dir = script_dir / f"tensorboard_logs{suffix}"
     selfplay_dir = model_dir / "selfplay_pool"
     
     latest_model_path = str(model_dir / "kuhhandel_ppo_latest")
@@ -242,6 +250,8 @@ def main():
     print(f"Configuration:")
     print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}, Reward Config: {REWARD_CONFIG_CLASS}")
     print(f"  Hyperparams: {args.hyperparams} (epsilon={hyperparams['clip_range']}, lr={hyperparams['learning_rate']})")
+    print(f"  Model Dir: {model_dir}")
+    print(f"  Log Dir: {log_dir}")
     
     # Create Envs
     n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
