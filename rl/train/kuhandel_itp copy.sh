@@ -11,5 +11,5 @@ wrappersource() {
 }
 wrappersource
 # run script with command line arguments (relevant for job arrays) $1=Cluster, $2=Process 
-python3 $file --itp --hyperparams default
+python3 $file --itp --hyperparams low_range
 exit
