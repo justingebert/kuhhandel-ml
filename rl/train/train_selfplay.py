@@ -189,9 +189,8 @@ def main():
         reward_config = RewardConfig()
 
     print(f"Configuration:")
-    print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}")
-    print(f"  Random Prob: {PROB_RANDOM}, Reward: {REWARD_CONFIG_CLASS}")
-
+    print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}, Reward Config: {REWARD_CONFIG_CLASS}")
+    
     # Create Envs
     n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
     
