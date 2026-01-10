@@ -364,7 +364,7 @@ class KuhhandelGUI(QMainWindow):
         
         players_label = QLabel("Number of Players:")
         self.players_spinbox = QSpinBox()
-        self.players_spinbox.setRange(3, 5)
+        self.players_spinbox.setRange(3, 3)  # Fixed to 3 players (model trained for 3)
         self.players_spinbox.setValue(3)
         
         players_layout.addWidget(players_label)
