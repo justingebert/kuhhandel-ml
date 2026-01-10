@@ -101,7 +101,7 @@ PROB_SCHWABE = 0.8
 
 DEVICE = "cpu"
 # !WICHTIG!!!!!
-RUN_NAME = "None" # Set this to a string to name the run, or leave None for auto-generated name
+RUN_NAME = None # Set this to a string to name the run, or leave None for auto-generated name
 MODEL_SUFFIX = ""
 
 
@@ -208,6 +208,7 @@ def make_env(rank: int, reward_config):
         torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
         
         env = KuhhandelEnv(num_players=3, reward_config=reward_config)
+        env = Monitor(env)
         
         env.opponent_generator = create_opponents
         

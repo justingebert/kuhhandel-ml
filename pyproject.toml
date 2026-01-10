@@ -28,7 +28,8 @@ ml = [
     "torch (>=2.4.1,<3.0.0)",
     "stable-baselines3 (>=2.3.0,<3.0.0)",
     "sb3-contrib (>=2.3.0,<3.0.0)",
-    "wandb (>=0.16.0,<1.0.0)"
+    "wandb (>=0.16.0,<1.0.0)",
+    "tensorboard (>=2.20.0,<3.0.0)"
 ]
 
 [tool.poetry]
