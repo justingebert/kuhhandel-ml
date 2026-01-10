@@ -6,11 +6,13 @@ import gymnasium as gym
 from pathlib import Path
 import multiprocessing
 import time
+import argparse
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable import distributions as maskable_dist
 from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.monitor import Monitor
 import torch
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -22,38 +24,85 @@ from rl.agents.model_agent import ModelAgent
 from rl.agents.random_agent import RandomAgent
 from rl.agents.rdm_schwaben_agent import RandomSchwabenAgent
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
+# ITP Server Configuration arg --itp for use
+ITP_CONFIG = {
+    "N_GENERATIONS": 150,
+    "STEPS_PER_GEN": 60000,
+    "MAX_ENVS": 32,
+    "REWARD_CONFIG_CLASS": "Default",
+    "POOL_SAVE_MODULO": 30, #Max models saved
+    "CREATE_PROGRESS_FILES": True,
+}
 
-# ITP Server Configuration (Uncomment to use)
-# N_GENERATIONS = 150
-# STEPS_PER_GEN = 60000
-# MAX_ENVS = 32
-# PROB_RANDOM = 0.05
-# REWARD_CONFIG_CLASS = "Default" # Options: "Default", "RewardMinimalAggressiveConfig", "WinOnlyConfig"
-# POOL_SAVE_MODULO = 30 # Save to folders gen_{gen % 30}
-# CREATE_PROGRESS_FILES = True
+# Standard Configuration
+LOCAL_CONFIG = {
+    "N_GENERATIONS": 15,
+    "STEPS_PER_GEN": 30000,
+    "MAX_ENVS": 16,
+    "REWARD_CONFIG_CLASS": "RewardMinimalAggressiveConfig",
+    "POOL_SAVE_MODULO": 0,
+    "CREATE_PROGRESS_FILES": False,
+}
 
-# Local / Standard Configuration
-N_GENERATIONS = 5
-STEPS_PER_GEN = 1000
-MAX_ENVS = 16
-PROB_RANDOM = 0.1
-REWARD_CONFIG_CLASS = "RewardMinimalAggressiveConfig" # Options: "Default", "RewardMinimalAggressiveConfig", "WinOnlyConfig"
-POOL_SAVE_MODULO = 0 # 0 means save to unique folder for every gen
-CREATE_PROGRESS_FILES = False
+# Hyperparameter presets for training
+HYPERPARAMETERS = {
+    "default": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.2,  # epsilon
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+    "low_range": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.1,  # epsilon = 0.2 (standard)
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+    "high_range": {
+        "learning_rate": 3e-4,
+        "clip_range": 0.3,  # epsilon = 0.1 (more conservative updates)
+        "n_steps": 2048,
+        "batch_size": 64,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+    },
+}
+
+# Select config based on argument (default: LOCAL_CONFIG)
+def get_config(use_itp=False):
+    return ITP_CONFIG if use_itp else LOCAL_CONFIG
+
+def get_hyperparams(preset_name: str = "default") -> dict:
+    """Get hyperparameters by preset name."""
+    if preset_name not in HYPERPARAMETERS:
+        print(f"Warning: Unknown preset '{preset_name}', using 'default'")
+        return HYPERPARAMETERS["default"]
+    return HYPERPARAMETERS[preset_name]
 
 # Common Config
+PROB_RANDOM = 0.05
 PROB_SCHWABE = 0.8
 
 DEVICE = "cpu"
 # !WICHTIG!!!!!
-RUN_NAME = "None" # Set this to a string to name the run, or leave None for auto-generated name
-
-# ==========================================
-# END CONFIGURATION
-# ==========================================
+RUN_NAME = None # Set this to a string to name the run, or leave None for auto-generated name
+MODEL_SUFFIX = ""
 
 
 # Fix for Simplex error due to floating point precision issues
@@ -96,20 +145,32 @@ def get_cached_model(model_path):
     Get model from cache or load it.
     """
     name = os.path.basename(model_path)
-    
-    if name not in MODEL_CACHE:
-        try:
-            model = MaskablePPO.load(model_path, env=None, device=DEVICE)
-            
-            if hasattr(model, "rollout_buffer"): #Buffer safes past moves required for training not for simulation
-                model.rollout_buffer = None
-                
-            MODEL_CACHE[name] = model
-        except Exception as e:
-            print(f"Error loading model {name}: {e}")
-            return None
-        
-    return MODEL_CACHE[name]
+
+    try:
+        mtime = os.path.getmtime(model_path)
+    except Exception:
+        mtime = None
+
+    cache_entry = MODEL_CACHE.get(name)
+
+    # If cached and file unchanged, return cached model
+    if cache_entry is not None:
+        cached_model, cached_mtime = cache_entry
+        if mtime is not None and cached_mtime == mtime:
+            return cached_model
+
+    # Otherwise (not cached or changed), load fresh
+    try:
+        model = MaskablePPO.load(model_path, env=None, device=DEVICE)
+
+        if hasattr(model, "rollout_buffer"):
+            model.rollout_buffer = None
+
+        MODEL_CACHE[name] = (model, mtime)
+        return model
+    except Exception as e:
+        print(f"Error loading model {name}: {e}")
+        return None
 
 
 def create_opponents(env_ref: KuhhandelEnv, n_opponents: int) -> list:
@@ -117,7 +178,7 @@ def create_opponents(env_ref: KuhhandelEnv, n_opponents: int) -> list:
     
     # We re-calculate SELFPLAY_DIR here to be safe across processes
     script_dir = Path(__file__).resolve().parent
-    model_dir = script_dir / "models"
+    model_dir = script_dir / f"models{MODEL_SUFFIX}"
     selfplay_dir = model_dir / "selfplay_pool"
     
     pool_files = glob.glob(f"{selfplay_dir}/*.zip")
@@ -147,6 +208,7 @@ def make_env(rank: int, reward_config):
         torch.set_num_threads(1) #damit die subprocesse nicht um kerne streiten
         
         env = KuhhandelEnv(num_players=3, reward_config=reward_config)
+        env = Monitor(env)
         
         env.opponent_generator = create_opponents
         
@@ -157,12 +219,43 @@ def make_env(rank: int, reward_config):
 
 
 def main():
-    print(f"Starting Self-Play Training with {MAX_ENVS} parallel environments...")
+    parser = argparse.ArgumentParser(description="Self-Play Training for Kuhhandel")
+    parser.add_argument("--itp", action="store_true", help="Use ITP Server Configuration instead of local/standard configuration")
+    parser.add_argument("--suffix", type=str, default="",
+                        help="Suffix to append to model and log directories (e.g., '_itp', '_v2')")
+    parser.add_argument("--hyperparams", type=str, default="default",
+                        choices=list(HYPERPARAMETERS.keys()),
+                        help=f"Hyperparameter preset to use: {list(HYPERPARAMETERS.keys())}")
+    args = parser.parse_args()
+
+    # Load configuration
+    config = get_config(use_itp=args.itp)
+    hyperparams = get_hyperparams(args.hyperparams)
+
+    # If using --itp and no explicit suffix, add default suffix
+    suffix = args.suffix
+    if args.itp and not suffix:
+        suffix = "_itp"
+    # export suffix for subprocesses/create_opponents
+    global MODEL_SUFFIX
+    MODEL_SUFFIX = suffix
+
+    N_GENERATIONS = config["N_GENERATIONS"]
+    STEPS_PER_GEN = config["STEPS_PER_GEN"]
+    MAX_ENVS = config["MAX_ENVS"]
+    REWARD_CONFIG_CLASS = config["REWARD_CONFIG_CLASS"]
+    POOL_SAVE_MODULO = config["POOL_SAVE_MODULO"]
+    CREATE_PROGRESS_FILES = config["CREATE_PROGRESS_FILES"]
+
+    n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
+
+    print(f"Starting Self-Play Training with {n_envs} parallel environments...")
+    print(f"Using {'ITP' if args.itp else 'Local/Standard'} Configuration")
     
     script_dir = Path(__file__).resolve().parent
-    model_dir = script_dir / "models"
-    log_dir = script_dir / "logs" # Not strictly used but kept
-    tb_log_dir = script_dir / "tensorboard_logs"
+    model_dir = script_dir / f"models{suffix}"
+    log_dir = script_dir / f"logs{suffix}"
+    tb_log_dir = script_dir / f"tensorboard_logs{suffix}"
     selfplay_dir = model_dir / "selfplay_pool"
     
     latest_model_path = str(model_dir / "kuhhandel_ppo_latest")
@@ -181,11 +274,10 @@ def main():
         reward_config = RewardConfig()
 
     print(f"Configuration:")
-    print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}")
-    print(f"  Random Prob: {PROB_RANDOM}, Reward: {REWARD_CONFIG_CLASS}")
-
-    # Create Envs
-    n_envs = min(multiprocessing.cpu_count(), MAX_ENVS)
+    print(f"  Gens: {N_GENERATIONS}, Steps: {STEPS_PER_GEN}, Envs: {MAX_ENVS}, Reward Config: {REWARD_CONFIG_CLASS}")
+    print(f"  Hyperparams: {args.hyperparams} (epsilon={hyperparams['clip_range']}, lr={hyperparams['learning_rate']})")
+    print(f"  Model Dir: {model_dir}")
+    print(f"  Log Dir: {log_dir}")
     
     env_fns = [make_env(i, reward_config) for i in range(n_envs)]
     vec_env = SubprocVecEnv(env_fns) 
@@ -204,7 +296,17 @@ def main():
             verbose=1, 
             device=DEVICE,
             policy_kwargs=policy_kwargs,
-            tensorboard_log=str(tb_log_dir)
+            tensorboard_log=str(tb_log_dir),
+            learning_rate=hyperparams["learning_rate"],
+            clip_range=hyperparams["clip_range"],
+            # n_steps=hyperparams["n_steps"],
+            # batch_size=hyperparams["batch_size"],
+            # n_epochs=hyperparams["n_epochs"],
+            # gamma=hyperparams["gamma"],
+            # gae_lambda=hyperparams["gae_lambda"],
+            # ent_coef=hyperparams["ent_coef"],
+            # vf_coef=hyperparams["vf_coef"],
+            # max_grad_norm=hyperparams["max_grad_norm"],
         )
 
     # Initialize W&B

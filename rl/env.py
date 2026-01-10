@@ -394,7 +394,7 @@ class KuhhandelEnv(gym.Env):
             "players_money": players_money_normalized,
             
             "player_quartets": np.array(quartets_list, dtype=np.float32) / 10.0,
-            "player_potential_value": np.array(potential_value_list, dtype=np.float32) / 16000.0,
+            "player_potential_value": np.array(potential_value_list, dtype=np.float32) / 15400.0,
         }
 
         return observation
