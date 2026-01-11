@@ -36,8 +36,8 @@ ITP_CONFIG = {
 
 # Standard Configuration
 LOCAL_CONFIG = {
-    "N_GENERATIONS": 15,
-    "STEPS_PER_GEN": 30000,
+    "N_GENERATIONS": 100,
+    "STEPS_PER_GEN": 50000,
     "MAX_ENVS": 16,
     "REWARD_CONFIG_CLASS": "RewardMinimalAggressiveConfig",
     "POOL_SAVE_MODULO": 0,
@@ -51,7 +51,7 @@ HYPERPARAMETERS = {
         "clip_range": 0.2,  # epsilon
         "n_steps": 2048,
         "batch_size": 64,
-        "n_epochs": 10,
+        "n_epochs": 100,
         "gamma": 0.99,
         "gae_lambda": 0.95,
         "ent_coef": 0.01,
