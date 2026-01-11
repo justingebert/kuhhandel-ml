@@ -51,7 +51,7 @@ HYPERPARAMETERS = {
         "clip_range": 0.2,  # epsilon
         "n_steps": 2048,
         "batch_size": 64,
-        "n_epochs": 100,
+        "n_epochs": 10,
         "gamma": 0.99,
         "gae_lambda": 0.95,
         "ent_coef": 0.01,
