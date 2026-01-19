@@ -1,3 +1,6 @@
+"""
+Gymnasium reinforcement learning environment for Kuhhandel.
+"""
 from typing import Optional, List
 
 import gymnasium as gym
@@ -244,7 +247,7 @@ class KuhhandelEnv(gym.Env):
                     overbid_amount = bid_amount - previous_high_bid
                     if overbid_amount > 10:
                         # Small penalty scaled by how much over 10 they bid
-                        reward -= cfg.overbid100_penelty * (overbid_amount - 10) / 100
+                        reward -= cfg.overbid_100_penalty * (overbid_amount - 10) / 100
         
         self.last_reward_history_idx = current_history_len
 

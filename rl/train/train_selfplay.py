@@ -1,3 +1,10 @@
+"""
+Self-play training script for the Kuhhandel RL agent.
+
+This script implements a generational self-play training loop using Maskable PPO.
+The agent learns by playing against a pool of its previous versions plus random agents.
+"""
+
 import os
 import glob
 import random

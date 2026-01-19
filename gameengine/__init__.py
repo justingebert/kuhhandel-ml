@@ -14,4 +14,3 @@ __all__ = [
     'GamePhase',
     'ActionType',
 ]
-
