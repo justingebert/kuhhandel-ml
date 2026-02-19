@@ -83,14 +83,6 @@ poetry install --with dev,ml
 
 ## 🚀 Usage
 
-### Play the Game (GUI)
-
-Play against AI opponents using the graphical interface:
-
-```bash
-poetry run python gui_game.py
-```
-
 ### Train a Model
 
 Run self-play training:
@@ -100,8 +92,8 @@ poetry run python rl/train/train_selfplay.py
 ```
 
 **Options:**
-- `--itp`: Use ITP server configuration
 - `--preset`: Hyperparameter preset (`default`, `low_lr`, `high_lr`)
+- `--itp`: Use ITP server configuration (custom compute cluster)
 
 ### Evaluate Model Performance
 
@@ -115,6 +107,14 @@ poetry run python rl/evaluate_winrate.py --main rl/models/gen150win_only.zip --n
 poetry run python rl/evaluate_winrate.py --main rl/models/gen150win_only.zip --opp rl/models/gen150oldRew.zip --n 100
 ```
 
+### Play the Game (GUI)
+
+Play against AI opponents using the graphical interface prototype (work in progress):
+
+```bash
+poetry run python gui_game.py
+```
+
 ### Run Tests
 
 ```bash
@@ -126,8 +126,3 @@ With coverage:
 poetry run pytest tests/ --cov=gameengine --cov-report=html
 ```
 
----
-
-## 📊 Results
-
-<!-- TODO: Add results from slides -->
