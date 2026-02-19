@@ -1,22 +1,29 @@
+"""
+Reward configuration classes for the Kuhhandel RL environment.
+
+Each configuration defines reward/penalty values for different game events.
+"""
+
+
 class RewardConfig:
-    """Base configuration for reward calculation"""
+    """Base/default configuration for reward calculation."""
 
     # Vulnerability penalty
-    no_money_penalty = -0.2 #per round
+    no_money_penalty = -0.2  # per round
 
     # Money dominance
-    money_dominance_bonus = 0.05 #per round
+    money_dominance_bonus = 0.05  # per round
 
     # Auction wins
     high_bidder_wins_reward = 0.1
     auctioneer_gets_free_reward = 0.2
-    auctioneer_gets_free_penalty = -0.2 #to everyone else
-    auctioneer_buys_reward = 0.1 #for money reciever
-    auctioneer_self_buy_penalty = -0.05 #for auctioneer
+    auctioneer_gets_free_penalty = -0.2  # to everyone else
+    auctioneer_buys_reward = 0.1  # for money receiver
+    auctioneer_self_buy_penalty = -0.05  # for auctioneer
 
     # Bidding behavior
     self_overbid_penalty = -0.1
-    overbid100_penelty = 1.0  # for 100 above highbid
+    overbid_100_penalty = 1.0  # for 100 above highbid
 
     # Quartets
     early_quartet_bonus = 0.5
@@ -33,22 +40,24 @@ class RewardConfig:
 
 
 class RewardMinimalAggressiveConfig(RewardConfig):
+    """Aggressive configuration with minimal penalties."""
+
     # Vulnerability penalty
-    no_money_penalty = 0 #per round
+    no_money_penalty = 0  # per round
 
     # Money dominance
-    money_dominance_bonus = 0 #per round
+    money_dominance_bonus = 0  # per round
 
     # Auction wins
     high_bidder_wins_reward = 0.2
     auctioneer_gets_free_reward = 0.2
-    auctioneer_gets_free_penalty = -0.2 #to everyone else
-    auctioneer_buys_reward = 0.2 #for money reciever
-    auctioneer_self_buy_penalty = 0 #for auctioneer
+    auctioneer_gets_free_penalty = -0.2  # to everyone else
+    auctioneer_buys_reward = 0.2  # for money receiver
+    auctioneer_self_buy_penalty = 0  # for auctioneer
 
     # Bidding behavior
     self_overbid_penalty = 0
-    overbid100_penelty = 0
+    overbid_100_penalty = 0
 
     # Quartets
     early_quartet_bonus = 1
@@ -65,24 +74,24 @@ class RewardMinimalAggressiveConfig(RewardConfig):
 
 
 class WinOnlyConfig(RewardConfig):
-    """Base configuration for reward calculation"""
+    """Sparse reward configuration focusing only on game outcomes."""
 
     # Vulnerability penalty
-    no_money_penalty = 0 #per round
+    no_money_penalty = 0  # per round
 
     # Money dominance
-    money_dominance_bonus = 0 #per round
+    money_dominance_bonus = 0  # per round
 
     # Auction wins
     high_bidder_wins_reward = 0
     auctioneer_gets_free_reward = 0
-    auctioneer_gets_free_penalty = 0 #to everyone else
-    auctioneer_buys_reward = 0 #for money reciever
-    auctioneer_self_buy_penalty = 0 #for auctioneer
+    auctioneer_gets_free_penalty = 0  # to everyone else
+    auctioneer_buys_reward = 0  # for money receiver
+    auctioneer_self_buy_penalty = 0  # for auctioneer
 
     # Bidding behavior
     self_overbid_penalty = 0
-    overbid100_penelty = 0
+    overbid_100_penalty = 0
 
     # Quartets
     early_quartet_bonus = 0.5

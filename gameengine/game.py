@@ -1,3 +1,10 @@
+"""
+Core game logic and state machine for Kuhhandel.
+
+The Game class maintains all game state and validates actions,
+while the GameController orchestrates interactions.
+"""
+
 import random
 from typing import List, Dict, Optional, Any
 from enum import Enum
